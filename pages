@@ -1,0 +1,338 @@
+<!DOCTYPE html><html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Widget Airdrop & Envios em Massa – Solana</title>
+  <style>
+    :root{--bg:#0b1220;--panel:#101826;--muted:#90a3b5;--text:#e8f0ff;--accent:#7cc4ff;--ok:#34d399;--warn:#f59e0b;--err:#ef4444}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#0a0f1c,#0d1220 40%,#0d1426);color:var(--text)}
+    .container{max-width:980px;margin:24px auto;padding:16px}
+    .card{background:rgba(16,24,38,.8);border:1px solid rgba(124,196,255,.15);backdrop-filter: blur(6px);border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.4);padding:18px}
+    h1{font-size:24px;margin:0 0 6px} h2{font-size:16px;color:var(--muted);font-weight:500;margin:0 0 18px}
+    .row{display:flex;gap:12px;flex-wrap:wrap;margin:10px 0}
+    .col{flex:1;min-width:260px}
+    input,textarea,select,button{width:100%;padding:12px 12px;border-radius:12px;border:1px solid rgba(124,196,255,.18);background:#0e1624;color:var(--text);outline:none}
+    textarea{min-height:140px;resize:vertical}
+    label{display:block;font-size:13px;color:var(--muted);margin:10px 4px}
+    .muted{color:var(--muted)} .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+    .btn{cursor:pointer;border:1px solid rgba(124,196,255,.35)}
+    .btn:hover{filter:brightness(1.05)}
+    .tabs{display:flex;gap:8px;margin:12px 0 16px}
+    .tab{flex:1;text-align:center;padding:10px;border-radius:12px;border:1px solid rgba(124,196,255,.18);cursor:pointer;background:#0f1828}
+    .tab.active{background:#13233a;border-color:rgba(124,196,255,.4)}
+    .footer{font-size:12px;color:var(--muted);margin-top:18px;text-align:center}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid rgba(124,196,255,.25);background:#0b1526}
+    .badge-ok{color:#052; background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.35)}
+    .badge-warn{color:#402; background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.35)}
+    .badge-err{color:#400; background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35)}
+    .small{font-size:12px}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Widget de Airdrop & Envios em Massa</h1>
+      <h2>Rede Solana • Conecte sua carteira e use as ferramentas abaixo. <span class="pill">Beta</span></h2><div class="row">
+    <div class="col">
+      <label>RPC (opcional – deixe em branco para padrão)</label>
+      <input id="rpcUrl" placeholder="ex.: https://api.mainnet-beta.solana.com">
+    </div>
+    <div class="col">
+      <label>Carteira do Site (recebe taxas em SOL)</label>
+      <input id="treasury" class="mono" placeholder="Insira a public key da sua carteira" />
+    </div>
+    <div class="col" style="max-width:220px">
+      <label>&nbsp;</label>
+      <button class="btn" id="connectBtn">Conectar Carteira</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="mass">Envio em Massa (SPL)</div>
+    <div class="tab" data-tab="rewards">Cadastrar Airdrop de Recompensas</div>
+    <div class="tab" data-tab="claim">Resgatar Recompensa</div>
+  </div>
+
+  <!-- MASS SEND -->
+  <div id="panel-mass">
+    <div class="row">
+      <div class="col">
+        <label>Mint do Token (SPL)</label>
+        <input id="mint" class="mono" placeholder="Ex.: So11111111111111111111111111111111111111112 (SOL-wrapped não suportado)" />
+      </div>
+      <div class="col">
+        <label>Casas decimais do token</label>
+        <input id="decimals" type="number" min="0" max="9" value="9" />
+      </div>
+      <div class="col">
+        <label>Valor por carteira (em unidades do token)</label>
+        <input id="amountEach" type="number" step="any" placeholder="Ex.: 10" />
+      </div>
+    </div>
+    <label>Lista de carteiras destino (uma por linha)</label>
+    <textarea id="destinations" placeholder="Exemplo:\n3xe...abc\n7fD...xyz\n..."></textarea>
+    <div class="row">
+      <div class="col">
+        <div class="small muted">Taxa do site ao executar: <span class="mono">0.000001 SOL</span>. Será enviada antes das transferências.</div>
+      </div>
+      <div class="col" style="max-width:220px">
+        <button class="btn" id="sendMassBtn">Enviar em Massa</button>
+      </div>
+    </div>
+    <div id="logMass" class="small muted mono"></div>
+  </div>
+
+  <!-- REGISTER REWARDS -->
+  <div id="panel-rewards" class="hidden">
+    <div class="row">
+      <div class="col">
+        <label>Nome da campanha</label>
+        <input id="campName" placeholder="Ex.: Lançamento Turbo Tuga" />
+      </div>
+      <div class="col">
+        <label>Mint do Token (SPL) a distribuir</label>
+        <input id="campMint" class="mono" />
+      </div>
+      <div class="col">
+        <label>Decimais</label>
+        <input id="campDecimals" type="number" min="0" max="9" value="9" />
+      </div>
+    </div>
+    <label>Lista de participantes autorizados (uma carteira por linha)</label>
+    <textarea id="campAllow" placeholder="Carteiras que poderão resgatar"></textarea>
+    <div class="row">
+      <div class="col">
+        <label>Quantidade por resgate (em unidades do token)</label>
+        <input id="campAmount" type="number" step="any" placeholder="Ex.: 5" />
+      </div>
+      <div class="col">
+        <label>Chave secreta da campanha (guarde!)</label>
+        <input id="campSecret" placeholder="Será usada para gerar os vouchers" />
+      </div>
+      <div class="col" style="max-width:220px">
+        <label>&nbsp;</label>
+        <button class="btn" id="registerCampBtn">Cadastrar Campanha</button>
+      </div>
+    </div>
+    <div class="small muted">Taxa do site ao cadastrar: <span class="mono">0.05 SOL</span>. Após pagar, será gerado um arquivo JSON com a campanha (para você hospedar) e um código de campanha para os usuários resgatarem aqui no widget.</div>
+    <div id="logReg" class="small muted mono"></div>
+  </div>
+
+  <!-- CLAIM -->
+  <div id="panel-claim" class="hidden">
+    <div class="row">
+      <div class="col">
+        <label>Código da campanha</label>
+        <input id="claimCode" placeholder="Cole o código recebido" />
+      </div>
+      <div class="col">
+        <label>URL do JSON da campanha</label>
+        <input id="claimUrl" placeholder="https://seusite.com/airdrop/campanha.json" />
+      </div>
+      <div class="col" style="max-width:220px">
+        <label>&nbsp;</label>
+        <button class="btn" id="claimBtn">Resgatar</button>
+      </div>
+    </div>
+    <div id="logClaim" class="small muted mono"></div>
+  </div>
+
+  <div class="footer">
+    Este widget é 100% client-side. Recomendado testar no <span class="pill">devnet</span> antes do mainnet. Você pode incorporar esta página via <span class="pill">&lt;iframe&gt;</span> no seu site.
+  </div>
+</div>
+
+  </div> <!-- Dependências ESM via CDN --> <script type="module">
+    import * as web3 from "https://esm.sh/@solana/web3.js@1.95.4";
+    import {
+      getAssociatedTokenAddress, createAssociatedTokenAccountInstruction,
+      createTransferInstruction, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID
+    } from "https://esm.sh/@solana/spl-token@0.4.6";
+
+    const $ = (id)=>document.getElementById(id);
+    const log = (el,msg)=>{ el.textContent += `\n${new Date().toLocaleTimeString()} ─ ${msg}`; el.scrollTop = el.scrollHeight; };
+
+    // Estado
+    let provider = null; // window.solana
+    let connection = null;
+    let walletPubkey = null;
+
+    const DEFAULT_RPC = "https://api.mainnet-beta.solana.com"; // altere para seu RPC provedor
+
+    // UI: tabs
+    document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      const target = t.getAttribute('data-tab');
+      ['mass','rewards','claim'].forEach(id=>{
+        $("panel-"+id).classList.toggle('hidden', id!==target);
+      })
+    }));
+
+    // Conectar carteira
+    $("connectBtn").onclick = async ()=>{
+      try{
+        provider = window.solana || window.phantom?.solana;
+        if(!provider) { alert("Abra com Phantom ou outra carteira compatível com Solana no navegador."); return; }
+        const resp = await provider.connect();
+        walletPubkey = new web3.PublicKey(resp.publicKey.toString());
+        $("connectBtn").textContent = `Conectado: ${walletPubkey.toString().slice(0,4)}...${walletPubkey.toString().slice(-4)}`;
+        const rpc = $("rpcUrl").value.trim() || DEFAULT_RPC;
+        connection = new web3.Connection(rpc, 'confirmed');
+      }catch(e){ alert("Falha ao conectar: "+e.message); }
+    };
+
+    // Util: pagar taxa do site
+    async function payFeeSOL(lamports){
+      const treasury = $("treasury").value.trim();
+      if(!treasury) throw new Error("Informe a carteira do site (Treasury)");
+      const toPub = new web3.PublicKey(treasury);
+      const tx = new web3.Transaction().add(web3.SystemProgram.transfer({
+        fromPubkey: walletPubkey,
+        toPubkey: toPub,
+        lamports
+      }));
+      tx.feePayer = walletPubkey;
+      tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+      const signed = await provider.signTransaction(tx);
+      const sig = await connection.sendRawTransaction(signed.serialize(), {skipPreflight:false});
+      await connection.confirmTransaction(sig, 'confirmed');
+      return sig;
+    }
+
+    // Util: garantir ATA
+    async function ensureAtaIx(ownerPub, mintPub){
+      const ata = await getAssociatedTokenAddress(mintPub, ownerPub, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+      const info = await connection.getAccountInfo(ata);
+      if(info) return {ata, ix:null};
+      const ix = createAssociatedTokenAccountInstruction(walletPubkey, ata, ownerPub, mintPub, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+      return {ata, ix};
+    }
+
+    // ENVIO EM MASSA
+    $("sendMassBtn").onclick = async ()=>{
+      const logEl = $("logMass"); logEl.textContent = "";
+      try{
+        if(!provider||!walletPubkey) throw new Error("Conecte a carteira primeiro");
+        if(!connection) connection = new web3.Connection($("rpcUrl").value.trim()||DEFAULT_RPC, 'confirmed');
+        const mintStr = $("mint").value.trim();
+        const decimals = parseInt($("decimals").value||"0");
+        const amountEach = parseFloat($("amountEach").value||"0");
+        const lines = $("destinations").value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+        if(!mintStr||!lines.length||!amountEach) throw new Error("Preencha Mint, Valor e Lista de carteiras");
+
+        log(logEl, "Pagando taxa do site (0.000001 SOL)...");
+        const feeSig = await payFeeSOL(1_000); // 0.000001 SOL
+        log(logEl, `Taxa paga. Tx: ${feeSig}`);
+
+        const mintPub = new web3.PublicKey(mintStr);
+        const senderAta = (await getAssociatedTokenAddress(mintPub, walletPubkey));
+        const senderAtaInfo = await connection.getAccountInfo(senderAta);
+        if(!senderAtaInfo) throw new Error("Sua carteira não possui ATA para este token. Receba o token primeiro.");
+
+        const amountRaw = BigInt(Math.round(amountEach * (10 ** decimals)));
+
+        // Lotes para não estourar limite de instruções
+        const CHUNK = 12;
+        for(let i=0;i<lines.length;i+=CHUNK){
+          const chunk = lines.slice(i,i+CHUNK);
+          const tx = new web3.Transaction();
+          for(const dest of chunk){
+            const destPub = new web3.PublicKey(dest);
+            const {ata, ix} = await ensureAtaIx(destPub, mintPub);
+            if(ix) tx.add(ix);
+            tx.add(createTransferInstruction(
+              senderAta, ata, walletPubkey, Number(amountRaw), [], TOKEN_PROGRAM_ID
+            ));
+          }
+          tx.feePayer = walletPubkey;
+          tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+          const signed = await provider.signTransaction(tx);
+          const sig = await connection.sendRawTransaction(signed.serialize(), {skipPreflight:false});
+          log(logEl, `Enviado lote (${i+1}-${Math.min(i+CHUNK, lines.length)}) Tx: ${sig}`);
+          await connection.confirmTransaction(sig, 'confirmed');
+        }
+        log(logEl, "Concluído ✅");
+      }catch(e){ log(logEl, "Erro: "+e.message); }
+    };
+
+    // CADASTRAR CAMPANHA DE RECOMPENSAS (client-side bundle + código)
+    function sha256(str){
+      const enc = new TextEncoder().encode(str);
+      return crypto.subtle.digest('SHA-256', enc).then(buf=>Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join(''));
+    }
+
+    $("registerCampBtn").onclick = async ()=>{
+      const logEl = $("logReg"); logEl.textContent = "";
+      try{
+        if(!provider||!walletPubkey) throw new Error("Conecte a carteira primeiro");
+        if(!connection) connection = new web3.Connection($("rpcUrl").value.trim()||DEFAULT_RPC, 'confirmed');
+        const name = $("campName").value.trim();
+        const mint = $("campMint").value.trim();
+        const decimals = parseInt($("campDecimals").value||"0");
+        const amount = parseFloat($("campAmount").value||"0");
+        const allow = $("campAllow").value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+        const secret = $("campSecret").value.trim();
+        if(!name||!mint||!amount||!allow.length||!secret) throw new Error("Preencha todos os campos.");
+
+        log(logEl, "Pagando taxa do site (0.05 SOL)...");
+        const feeSig = await payFeeSOL(50_000_000); // 0.05 SOL
+        log(logEl, `Taxa paga. Tx: ${feeSig}`);
+
+        const payload = {name, mint, decimals, amount, allow, owner: walletPubkey.toString()};
+        const code = await sha256(JSON.stringify(payload)+"|"+secret).then(h=>h.slice(0,16));
+        const campaign = {...payload, code, createdAt: new Date().toISOString(), network: (($("rpcUrl").value.includes('devnet'))?'devnet':'mainnet') };
+
+        // gera arquivo JSON para baixar e hospedar
+        const blob = new Blob([JSON.stringify(campaign,null,2)], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `airdrop_${code}.json`; a.click();
+        URL.revokeObjectURL(url);
+        log(logEl, `Campanha criada. Código: ${code} → um arquivo JSON foi baixado. Hospede-o e compartilhe o código.`);
+      }catch(e){ log(logEl, "Erro: "+e.message); }
+    };
+
+    // RESGATAR (precisa do JSON hospedado)
+    $("claimBtn").onclick = async ()=>{
+      const logEl = $("logClaim"); logEl.textContent = "";
+      try{
+        if(!provider||!walletPubkey) throw new Error("Conecte a carteira primeiro");
+        if(!connection) connection = new web3.Connection($("rpcUrl").value.trim()||DEFAULT_RPC, 'confirmed');
+        const code = $("claimCode").value.trim();
+        const url = $("claimUrl").value.trim();
+        if(!code||!url) throw new Error("Informe o código e a URL da campanha");
+        const res = await fetch(url);
+        if(!res.ok) throw new Error("Não foi possível carregar a campanha");
+        const camp = await res.json();
+        if(camp.code !== code) throw new Error("Código inválido para esta campanha");
+        if(!camp.allow.includes(walletPubkey.toString())) throw new Error("Sua carteira não está autorizada nesta campanha");
+
+        // Transferência: do OWNER → para o claimant (necessita que o OWNER assine; neste modelo simplificado, o dono da campanha executa os envios manualmente)
+        // Como alternativa, o DONO pode usar a aba "Envio em Massa" com a lista de allow para distribuir.
+        // Aqui faremos um pedido de assinatura do dono SE ele estiver conectado como owner.
+        if(camp.owner !== walletPubkey.toString()){
+          log(logEl, "Este modo de resgate requer o dono conectado para enviar. Peça ao dono ou aguarde distribuição em massa.");
+          return;
+        }
+
+        const mintPub = new web3.PublicKey(camp.mint);
+        const decimals = parseInt(camp.decimals||"0");
+        const amountRaw = BigInt(Math.round(parseFloat(camp.amount) * (10 ** decimals)));
+        const senderAta = await getAssociatedTokenAddress(mintPub, walletPubkey);
+        const {ata:destAta, ix} = await ensureAtaIx(walletPubkey, mintPub); // se o dono for o mesmo, só para exemplo; numa campanha real, substituiria pelo claimant
+        const tx = new web3.Transaction();
+        if(ix) tx.add(ix);
+        tx.add(createTransferInstruction(senderAta, destAta, walletPubkey, Number(amountRaw), [], TOKEN_PROGRAM_ID));
+        tx.feePayer = walletPubkey;
+        tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        const signed = await provider.signTransaction(tx);
+        const sig = await connection.sendRawTransaction(signed.serialize(), {skipPreflight:false});
+        await connection.confirmTransaction(sig, 'confirmed');
+        log(logEl, `Resgate efetuado. Tx: ${sig}`);
+      }catch(e){ log(logEl, "Erro: "+e.message); }
+    };
+
+  </script></body>
+</html>
