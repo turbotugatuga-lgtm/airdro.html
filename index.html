@@ -73,7 +73,6 @@ textarea { resize: vertical; min-height: 120px; }
 
 <script>
 const $=(id)=>document.getElementById(id);
-const TREASURY="9Sexip38yhfeZD2EBDQkVRicZSY6eSK3cXxgDkgFVf8b";
 const FEE_PER_RECIPIENT_SOL=0.00005;
 let provider=null, connection=null, walletPubkey=null;
 let tokenList=[], selectedToken=null;
@@ -87,7 +86,7 @@ connectBtn.onclick=async()=>{
   if(!window.solana) return alert("Instale Phantom Wallet");
   provider=window.solana;
   try{
-    const resp=await provider.connect({onlyIfTrusted:false}); // força login manual
+    const resp=await provider.connect({onlyIfTrusted:false});
     walletPubkey=resp.publicKey;
     connectBtn.classList.add("hidden"); 
     disconnectBtn.classList.remove("hidden");
@@ -97,7 +96,7 @@ connectBtn.onclick=async()=>{
   }catch(e){ alert("Falha: "+e.message);}
 };
 
-disconnectBtn.onclick=async()=>{
+disconnectBtn.onclick=()=>{
   provider=null; walletPubkey=null; tokenList=[]; selectedToken=null;
   tokenSelect.innerHTML=`<option value="">— conecte para carregar tokens —</option>`;
   tokenInfo.textContent="";
@@ -124,8 +123,13 @@ async function loadTokens(){
       const ui=Number(info.tokenAmount.uiAmountString||0);
       if(ui>0) tokenList.push({mint:info.mint, decimals:info.tokenAmount.decimals, amount:ui});
     }
-    if(tokenList.length===0){ tokenSelect.innerHTML=`<option>Nenhum token com saldo</option>`; tokenInfo.textContent=""; return; }
-    tokenSelect.innerHTML=`<option value="">— selecione —</option>`+tokenList.map((t,i)=>`<option value="${i}">${t.mint.slice(0,6)}…${t.mint.slice(-6)} • ${t.amount}</option>`).join("");
+    if(tokenList.length===0){ 
+      tokenSelect.innerHTML=`<option>Nenhum token com saldo</option>`; 
+      tokenInfo.textContent=""; 
+      return; 
+    }
+    tokenSelect.innerHTML=`<option value="">— selecione —</option>`+
+      tokenList.map((t,i)=>`<option value="${i}">${t.mint.slice(0,6)}…${t.mint.slice(-6)} • ${t.amount}</option>`).join("");
     tokenSelect.onchange=()=>{
       const idx=tokenSelect.value;
       if(idx===""){ selectedToken=null; tokenInfo.textContent=""; return; }
@@ -167,7 +171,7 @@ sendBtn.onclick=async()=>{
       if(!resp) instrs.push(splToken.createAssociatedTokenAccountInstruction(walletPubkey,destPk,mint,walletPubkey));
       instrs.push(splToken.createTransferInstruction(ataFrom,ataTo,walletPubkey,amt*Math.pow(10,decimals),[],splToken.TOKEN_PROGRAM_ID));
       const tx=new solanaWeb3.Transaction().add(...instrs);
-      const sig=await solanaWeb3.sendAndConfirmTransaction(connection,tx,[provider]);
+      const sig=await provider.signAndSendTransaction(tx);
       runLog.textContent+=`✅ ${dest} enviado: ${sig}\n`; sentCount++;
     }catch(e){ runLog.textContent+=`❌ ${dest} falhou: ${e.message}\n`; }
   }
@@ -176,4 +180,3 @@ sendBtn.onclick=async()=>{
 </script>
 </body>
 </html>
-
