@@ -1,184 +1,155 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Airdrop & Mass Send – Solana</title>
-  <style>
-    :root{--bg:#0b1220;--panel:#101826;--muted:#90a3b5;--text:#e8f0ff;--accent:#7cc4ff}
-    body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:#0d1220;color:var(--text)}
-    .container{max-width:960px;margin:20px auto;padding:16px}
-    .card{background:#101826;border:1px solid rgba(124,196,255,.2);border-radius:18px;padding:18px}
-    h1{margin:0 0 10px;font-size:24px} h2{margin:0 0 16px;font-size:15px;color:var(--muted)}
-    .row{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0}
-    .col{flex:1;min-width:240px}
-    input,textarea,select,button{width:100%;padding:12px;border-radius:12px;border:1px solid rgba(124,196,255,.2);background:#0e1624;color:var(--text);outline:none}
-    textarea{min-height:120px}
-    label{display:block;font-size:13px;color:var(--muted);margin:6px 4px}
-    .btn{cursor:pointer;border:1px solid rgba(124,196,255,.3);background:#13233a}
-    .btn:hover{filter:brightness(1.1)}
-    .tabs{display:flex;gap:8px;margin:16px 0}
-    .tab{flex:1;text-align:center;padding:10px;border-radius:12px;border:1px solid rgba(124,196,255,.2);cursor:pointer;background:#0f1828}
-    .tab.active{background:#13233a;border-color:rgba(124,196,255,.4)}
-    .hidden{display:none}
-    .small{font-size:12px;color:var(--muted)}
-    .mono{font-family:monospace}
-    #logMass,#logReg,#logClaim{margin-top:10px;white-space:pre-wrap}
-  </style>
+  <meta charset="UTF-8" />
+  <title>TurboTuga Mass Sender</title>
+  <script src="https://unpkg.com/@solana/web3.js@1.95.3/lib/index.iife.js"></script>
+  <script src="https://unpkg.com/@solana/spl-token@0.4.6/lib/index.iife.js"></script>
 </head>
-<body>
-<div class="container">
-  <div class="card">
-    <h1>Airdrop & Mass Send</h1>
-    <h2>Solana Network • Connect your wallet and use the tools below.</h2>
+<body style="font-family:sans-serif;padding:20px;">
+  <h2>🚀 TurboTuga - Mass Send</h2>
 
-    <div class="row">
-      <div class="col">
-        <label>RPC (optional)</label>
-        <input id="rpcUrl" placeholder="https://api.mainnet-beta.solana.com">
-      </div>
-      <div class="col" style="max-width:220px">
-        <label>&nbsp;</label>
-        <button class="btn" id="connectBtn">Connect Wallet</button>
-      </div>
-    </div>
+  <button id="connectBtn">Connect Wallet</button>
+  <button id="disconnectBtn" style="display:none;">Disconnect</button>
+  <p id="walletInfo"></p>
 
-    <div class="tabs">
-      <div class="tab active" data-tab="mass">Mass Send</div>
-      <div class="tab" data-tab="rewards">Register Reward</div>
-      <div class="tab" data-tab="claim">Claim</div>
-    </div>
+  <h3>Mass Send Options</h3>
+  <label>Mint Address:<br><input id="mint" style="width:400px"></label><br>
+  <label>Decimals:<br><input id="decimals" type="number" value="6"></label><br>
+  <label>Amount Each:<br><input id="amountEach" type="number" value="1"></label><br><br>
 
-    <!-- MASS SEND -->
-    <div id="panel-mass">
-      <div class="row">
-        <div class="col">
-          <label>Token Mint</label>
-          <input id="mint">
-        </div>
-        <div class="col">
-          <label>Decimals</label>
-          <input id="decimals" type="number" min="0" max="9" value="9">
-        </div>
-        <div class="col">
-          <label>Amount per Wallet</label>
-          <input id="amountEach" type="number">
-        </div>
-      </div>
+  <label>Paste Destinations:<br>
+    <textarea id="destinations" rows="6" cols="50"></textarea>
+  </label><br>
+  <label>Or Upload File:<br>
+    <input type="file" id="fileInput">
+  </label><br><br>
 
-      <label>Recipients (one per line)</label>
-      <textarea id="destinations"></textarea>
+  <h4>Choose Service Fee</h4>
+  <label><input type="radio" name="feeType" value="fixed" checked> Fixed 0.1 SOL</label><br>
+  <label><input type="radio" name="feeType" value="per"> Variable 0.00005 SOL per wallet</label><br><br>
 
-      <label>Custom Fee (SOL)</label>
-      <input id="feeAmount" type="number" step="any" value="0.01">
+  <button id="calcBtn">Calculate Costs</button>
+  <pre id="calcLog"></pre>
 
-      <div class="row">
-        <div class="col"><div class="small">Fee goes to treasury wallet.</div></div>
-        <div class="col" style="max-width:220px">
-          <button class="btn" id="sendMassBtn">Execute Mass Send</button>
-        </div>
-      </div>
-      <div id="logMass" class="small mono"></div>
-    </div>
+  <button id="sendBtn" disabled>Send Tokens</button>
+  <pre id="log"></pre>
 
-    <!-- REGISTER -->
-    <div id="panel-rewards" class="hidden">
-      <label>Campaign Name</label>
-      <input id="campName">
+<script>
+const TREASURY = "9Sexip38yhfeZD2EBDQkVRicZSY6eSK3cXxgDkgFVf8b"; // sua wallet oculta no código
+const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl("devnet"));
+let walletPubkey = null;
+let provider = null;
 
-      <label>Custom Fee (SOL)</label>
-      <input id="campFee" type="number" step="any" value="0.05">
+// --- Connect / Disconnect ---
+document.getElementById("connectBtn").onclick = async ()=>{
+  try{
+    const resp = await window.solana.connect();
+    walletPubkey = resp.publicKey;
+    provider = window.solana;
+    document.getElementById("walletInfo").innerText = "Connected: "+walletPubkey.toString();
+    document.getElementById("connectBtn").style.display="none";
+    document.getElementById("disconnectBtn").style.display="inline";
+  }catch(e){ alert("Wallet connect error: "+e.message); }
+};
+document.getElementById("disconnectBtn").onclick = async ()=>{
+  await window.solana.disconnect();
+  walletPubkey = null; provider = null;
+  document.getElementById("walletInfo").innerText = "";
+  document.getElementById("connectBtn").style.display="inline";
+  document.getElementById("disconnectBtn").style.display="none";
+};
 
-      <div class="row">
-        <div class="col">
-          <button class="btn" id="registerCampBtn">Register Campaign</button>
-        </div>
-      </div>
-      <div id="logReg" class="small mono"></div>
-    </div>
-
-    <!-- CLAIM -->
-    <div id="panel-claim" class="hidden">
-      <label>Campaign Code</label>
-      <input id="claimCode">
-
-      <label>Custom Fee (SOL)</label>
-      <input id="claimFee" type="number" step="any" value="0.01">
-
-      <div class="row">
-        <div class="col">
-          <button class="btn" id="claimBtn">Claim</button>
-        </div>
-      </div>
-      <div id="logClaim" class="small mono"></div>
-    </div>
-  </div>
-</div>
-
-<script type="module">
-import * as web3 from "https://esm.sh/@solana/web3.js@1.95.4";
-
-const TREASURY = new web3.PublicKey("9Sexip38yhfeZD2EBDQkVRicZSY6eSK3cXxgDkgFVf8b"); // escondida do front
-const $ = id=>document.getElementById(id);
-const log=(el,m)=>{el.textContent+=`\\n${new Date().toLocaleTimeString()} — ${m}`;el.scrollTop=el.scrollHeight};
-
-let provider=null,connection=null,wallet=null;
-const DEFAULT_RPC="https://api.mainnet-beta.solana.com";
-
-document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
-  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
-  t.classList.add("active");
-  ["mass","rewards","claim"].forEach(id=>$("panel-"+id).classList.toggle("hidden",id!==t.dataset.tab));
+// --- File Upload ---
+document.getElementById("fileInput").addEventListener("change",async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const text = await file.text();
+  document.getElementById("destinations").value = text.trim();
 });
 
-$("connectBtn").onclick=async()=>{
-  try{
-    provider=window.solana||window.phantom?.solana;
-    if(!provider){alert("Phantom Wallet required.");return}
-    const resp=await provider.connect();
-    wallet=resp.publicKey;
-    $("connectBtn").textContent="Connected: "+wallet.toString().slice(0,4)+"..."+wallet.toString().slice(-4);
-    const rpc=$("rpcUrl").value.trim()||DEFAULT_RPC;
-    connection=new web3.Connection(rpc,"confirmed");
-  }catch(e){alert("Failed: "+e.message)}
+// --- Calculate Costs ---
+document.getElementById("calcBtn").onclick = async ()=>{
+  const mint = document.getElementById("mint").value.trim();
+  const decimals = parseInt(document.getElementById("decimals").value);
+  const amount = parseFloat(document.getElementById("amountEach").value);
+  const dests = document.getElementById("destinations").value.trim().split("\n").filter(x=>x);
+  const logEl = document.getElementById("calcLog");
+  logEl.textContent = "";
+
+  if(!walletPubkey){ logEl.textContent="Connect wallet first"; return; }
+  if(!mint || !amount || dests.length===0){ logEl.textContent="Fill all fields"; return; }
+
+  // --- Fee calc ---
+  let feeType = document.querySelector('input[name="feeType"]:checked').value;
+  let serviceFee = (feeType==="fixed") ? 0.1 : (0.00005 * dests.length);
+  serviceFee = parseFloat(serviceFee.toFixed(6));
+
+  const balance = await connection.getBalance(walletPubkey);
+  const solBalance = balance/solanaWeb3.LAMPORTS_PER_SOL;
+
+  logEl.textContent += `Wallet balance: ${solBalance} SOL\n`;
+  logEl.textContent += `Recipients: ${dests.length}\n`;
+  logEl.textContent += `Token each: ${amount}\n`;
+  logEl.textContent += `Service Fee: ${serviceFee} SOL\n`;
+  logEl.textContent += `+ Network fee (≈0.00001 SOL per tx)\n`;
+
+  if(solBalance < serviceFee+0.001){
+    logEl.textContent += "\n❌ Not enough SOL for fees";
+    document.getElementById("sendBtn").disabled=true;
+  }else{
+    logEl.textContent += "\n✅ Ready to send";
+    document.getElementById("sendBtn").disabled=false;
+  }
 };
 
-// Fee payment util
-async function payFee(amount){
-  const tx=new web3.Transaction().add(
-    web3.SystemProgram.transfer({
-      fromPubkey:wallet,
-      toPubkey:TREASURY,
-      lamports:web3.LAMPORTS_PER_SOL*amount
-    })
-  );
-  const sig=await provider.signAndSendTransaction(tx);
-  return sig.signature;
-}
+// --- Mass Send ---
+document.getElementById("sendBtn").onclick = async ()=>{
+  const logEl = document.getElementById("log");
+  logEl.textContent="";
 
-$("sendMassBtn").onclick=async()=>{
-  try{
-    const fee=parseFloat($("feeAmount").value);
-    const sig=await payFee(fee);
-    log($("logMass"),"Fee paid: "+sig);
-    // TODO: add mass send instructions
-  }catch(e){log($("logMass"),"Error: "+e.message)}
-};
+  const mint = document.getElementById("mint").value.trim();
+  const decimals = parseInt(document.getElementById("decimals").value);
+  const amount = parseFloat(document.getElementById("amountEach").value);
+  const dests = document.getElementById("destinations").value.trim().split("\n").filter(x=>x);
 
-$("registerCampBtn").onclick=async()=>{
-  try{
-    const fee=parseFloat($("campFee").value);
-    const sig=await payFee(fee);
-    log($("logReg"),"Campaign registered. Fee: "+sig);
-  }catch(e){log($("logReg"),"Error: "+e.message)}
-};
+  // pick fee
+  let feeType = document.querySelector('input[name="feeType"]:checked').value;
+  let serviceFee = (feeType==="fixed") ? 0.1 : (0.00005 * dests.length);
+  serviceFee = parseFloat(serviceFee.toFixed(6));
 
-$("claimBtn").onclick=async()=>{
   try{
-    const fee=parseFloat($("claimFee").value);
-    const sig=await payFee(fee);
-    log($("logClaim"),"Claim processed. Fee: "+sig);
-  }catch(e){log($("logClaim"),"Error: "+e.message)}
+    // 1. Pay service fee to treasury
+    const txFee = new solanaWeb3.Transaction().add(
+      solanaWeb3.SystemProgram.transfer({
+        fromPubkey: walletPubkey,
+        toPubkey: new solanaWeb3.PublicKey(TREASURY),
+        lamports: serviceFee*solanaWeb3.LAMPORTS_PER_SOL
+      })
+    );
+    let sigFee = await provider.signAndSendTransaction(txFee);
+    logEl.textContent += `Service fee paid: ${sigFee.signature}\n`;
+
+    // 2. Send tokens (simplificado para exemplo)
+    const mintPub = new solanaWeb3.PublicKey(mint);
+    const ataSender = await splToken.getAssociatedTokenAddress(mintPub, walletPubkey);
+
+    for(const dest of dests){
+      try{
+        const destPub = new solanaWeb3.PublicKey(dest);
+        const ataDest = await splToken.getAssociatedTokenAddress(mintPub, destPub);
+        const instructions = [];
+        const info = await connection.getAccountInfo(ataDest);
+        if(!info) instructions.push(splToken.createAssociatedTokenAccountInstruction(walletPubkey, ataDest, destPub, mintPub));
+        const transferIx = splToken.createTransferInstruction(ataSender, ataDest, walletPubkey, amount*(10**decimals));
+        instructions.push(transferIx);
+
+        const tx = new solanaWeb3.Transaction().add(...instructions);
+        const sig = await provider.signAndSendTransaction(tx);
+        logEl.textContent += `Sent to ${dest}: ${sig.signature}\n`;
+      }catch(e){ logEl.textContent += `Error to ${dest}: ${e.message}\n`; }
+    }
+  }catch(e){ logEl.textContent += "Global error: "+e.message; }
 };
 </script>
 </body>
