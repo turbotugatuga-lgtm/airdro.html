@@ -37,7 +37,7 @@ textarea { resize: vertical; min-height: 120px; }
     <div>
       <label>Select SPL Token</label>
       <select id="tokenSelect" class="input">
-        <option value="">— connect to load tokens —</option>
+        <option value="">— connect wallet to load tokens —</option>
       </select>
       <div id="tokenInfo" class="text-sm text-gray-300 mt-1"></div>
     </div>
@@ -84,32 +84,32 @@ const tokenSelect=$("tokenSelect"), tokenInfo=$("tokenInfo");
 const calcBtn=$("calcBtn"), sendBtn=$("sendBtn");
 const calcLog=$("calcLog"), runLog=$("runLog");
 
-// Connect wallet manually
+// Manual connect wallet
 connectBtn.onclick=async()=>{
   if(!window.solana) return alert("Please install Phantom Wallet");
   provider=window.solana;
   try{
-    const resp=await provider.connect({onlyIfTrusted:false}); // Manual connect
+    const resp=await provider.connect({onlyIfTrusted:false}); // manual connect
     walletPubkey=resp.publicKey;
     connectBtn.classList.add("hidden"); 
     disconnectBtn.classList.remove("hidden");
     const rpc=$("rpcUrl").value.trim();
     connection=new solanaWeb3.Connection(rpc||solanaWeb3.clusterApiUrl("devnet"),"confirmed");
-    await loadTokens();
+    await loadTokens(); // only after manual connect
   }catch(e){ alert("Error: "+e.message);}
 };
 
-// Disconnect wallet (manual reset)
+// Disconnect wallet
 disconnectBtn.onclick=()=>{
   provider=null; walletPubkey=null; tokenList=[]; selectedToken=null;
-  tokenSelect.innerHTML=`<option value="">— connect to load tokens —</option>`;
+  tokenSelect.innerHTML=`<option value="">— connect wallet to load tokens —</option>`;
   tokenInfo.textContent="";
   connectBtn.classList.remove("hidden"); 
   disconnectBtn.classList.add("hidden");
   sendBtn.disabled=true; calcLog.textContent=""; runLog.textContent="";
 };
 
-// File upload for destinations
+// File upload
 $("uploadBtn").onclick=()=>$("fileInput").click();
 $("fileInput").addEventListener("change", async(e)=>{
   const f=e.target.files?.[0]; if(!f) return;
@@ -118,21 +118,22 @@ $("fileInput").addEventListener("change", async(e)=>{
   $("destinations").value=wallets.join("\n");
 });
 
-// Load SPL tokens from wallet
+// Load SPL tokens
 async function loadTokens(){
   tokenSelect.innerHTML=`<option>Loading...</option>`;
   try{
     const resp=await connection.getParsedTokenAccountsByOwner(walletPubkey,{programId:splToken.TOKEN_PROGRAM_ID});
     tokenList=[];
+    if(!resp.value || resp.value.length===0){
+      tokenSelect.innerHTML=`<option>No tokens found</option>`; return;
+    }
     for(const {account} of resp.value){
       const info=account.data.parsed.info;
       const ui=Number(info.tokenAmount.uiAmountString||0);
       if(ui>0) tokenList.push({mint:info.mint, decimals:info.tokenAmount.decimals, amount:ui});
     }
-    if(tokenList.length===0){ 
-      tokenSelect.innerHTML=`<option>No tokens with balance</option>`; 
-      tokenInfo.textContent=""; 
-      return; 
+    if(tokenList.length===0){
+      tokenSelect.innerHTML=`<option>No tokens with balance</option>`; tokenInfo.textContent=""; return;
     }
     tokenSelect.innerHTML=`<option value="">— select —</option>`+
       tokenList.map((t,i)=>`<option value="${i}">${t.mint.slice(0,6)}…${t.mint.slice(-6)} • ${t.amount}</option>`).join("");
@@ -143,7 +144,7 @@ async function loadTokens(){
       tokenInfo.textContent=`Mint: ${selectedToken.mint} | Balance: ${selectedToken.amount}`;
       sendBtn.disabled=false;
     };
-  }catch(e){ tokenSelect.innerHTML=`<option>Error</option>`; tokenInfo.textContent=e.message; }
+  }catch(e){ tokenSelect.innerHTML=`<option>Error loading tokens</option>`; tokenInfo.textContent=e.message; }
 }
 
 // Validate Solana address
