@@ -121,7 +121,7 @@ $("fileInput").addEventListener("change", async(e)=>{
 async function loadTokens(){
   tokenSelect.innerHTML=`<option>Loading...</option>`;
   try{
-    const resp=await connection.getParsedTokenAccountsByOwner(walletPubkey, {programId:splToken.TOKEN_PROGRAM_ID});
+    const resp=await connection.getParsedTokenAccountsByOwner(walletPubkey, {programId: SPLToken.TOKEN_PROGRAM_ID});
     tokenList=[];
     if(!resp.value || resp.value.length===0){
       tokenSelect.innerHTML=`<option>No tokens found</option>`; return;
@@ -183,12 +183,11 @@ sendBtn.onclick=async()=>{
   for(const dest of dests){
     try{
       const destPk=new solanaWeb3.PublicKey(dest);
-      const ataFrom=await splToken.getAssociatedTokenAddress(mint,walletPubkey);
-      const ataTo=await splToken.getAssociatedTokenAddress(mint,destPk);
+      const ataFrom=await SPLToken.getAssociatedTokenAddress(mint,walletPubkey);
+      const ataTo=await SPLToken.getAssociatedTokenAddress(mint,destPk);
       const instrs=[];
-      const resp=await connection.getAccountInfo(ataTo);
-      if(!resp) instrs.push(splToken.createAssociatedTokenAccountInstruction(walletPubkey,destPk,mint,walletPubkey, splToken.ASSOCIATED_TOKEN_PROGRAM_ID, splToken.TOKEN_PROGRAM_ID));
-      instrs.push(splToken.createTransferInstruction(ataFrom,ataTo,walletPubkey,amt*Math.pow(10,decimals),[],splToken.TOKEN_PROGRAM_ID));
+      if(!await connection.getAccountInfo(ataTo)) instrs.push(SPLToken.createAssociatedTokenAccountInstruction(walletPubkey,destPk,mint,walletPubkey, SPLToken.ASSOCIATED_TOKEN_PROGRAM_ID, SPLToken.TOKEN_PROGRAM_ID));
+      instrs.push(SPLToken.createTransferInstruction(ataFrom,ataTo,walletPubkey,amt*Math.pow(10,decimals),[],SPLToken.TOKEN_PROGRAM_ID));
       const tx=new solanaWeb3.Transaction().add(...instrs);
       const sig=await provider.signAndSendTransaction(tx);
       runLog.textContent+=`✅ ${dest} sent: ${sig}\n`; sentCount++;
