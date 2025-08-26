@@ -79,8 +79,12 @@ const FEE_PER_RECIPIENT_SOL=0.00005;
 let provider=null, connection=null, walletPubkey=null;
 let tokenList=[], selectedToken=null;
 
-// Use the IIFE global variable
+// Use IIFE global
 const splToken = window.splToken;
+
+// Define constants manually
+const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("ATokenGPvRZt31k3d87e1z8H1y76h8o6bntU6xzfsPQ3");
 
 const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn");
 const tokenSelect=$("tokenSelect"), tokenInfo=$("tokenInfo");
@@ -92,13 +96,13 @@ connectBtn.onclick=async()=>{
   if(!window.solana) return alert("Please install Phantom Wallet");
   provider=window.solana;
   try{
-    const resp=await provider.connect({onlyIfTrusted:false}); // manual connect
+    const resp=await provider.connect({onlyIfTrusted:false});
     walletPubkey=resp.publicKey;
     connectBtn.classList.add("hidden"); 
     disconnectBtn.classList.remove("hidden");
     const rpc=$("rpcUrl").value.trim();
     connection=new solanaWeb3.Connection(rpc||solanaWeb3.clusterApiUrl("devnet"),"confirmed");
-    await loadTokens(); // load tokens only after connection
+    await loadTokens();
   }catch(e){ alert("Error: "+e.message);}
 };
 
@@ -125,7 +129,7 @@ $("fileInput").addEventListener("change", async(e)=>{
 async function loadTokens(){
   tokenSelect.innerHTML=`<option>Loading...</option>`;
   try{
-    const resp=await connection.getParsedTokenAccountsByOwner(walletPubkey,{programId:splToken.TOKEN_PROGRAM_ID});
+    const resp=await connection.getParsedTokenAccountsByOwner(walletPubkey,{programId: TOKEN_PROGRAM_ID});
     tokenList=[];
     if(!resp.value || resp.value.length===0){
       tokenSelect.innerHTML=`<option>No tokens found</option>`; return;
@@ -181,8 +185,8 @@ sendBtn.onclick=async()=>{
       const ataTo=await splToken.getAssociatedTokenAddress(mint,destPk);
       const instrs=[];
       const resp=await connection.getAccountInfo(ataTo);
-      if(!resp) instrs.push(splToken.createAssociatedTokenAccountInstruction(walletPubkey,destPk,mint,walletPubkey));
-      instrs.push(splToken.createTransferInstruction(ataFrom,ataTo,walletPubkey,amt*Math.pow(10,decimals),[],splToken.TOKEN_PROGRAM_ID));
+      if(!resp) instrs.push(splToken.createAssociatedTokenAccountInstruction(walletPubkey,destPk,mint,walletPubkey, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID));
+      instrs.push(splToken.createTransferInstruction(ataFrom,ataTo,walletPubkey,amt*Math.pow(10,decimals),[],TOKEN_PROGRAM_ID));
       const tx=new solanaWeb3.Transaction().add(...instrs);
       const sig=await provider.signAndSendTransaction(tx);
       runLog.textContent+=`✅ ${dest} sent: ${sig}\n`; sentCount++;
