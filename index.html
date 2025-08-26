@@ -79,12 +79,15 @@ const FEE_PER_RECIPIENT_SOL=0.00005;
 let provider=null, connection=null, walletPubkey=null;
 let tokenList=[], selectedToken=null;
 
+// Use the IIFE global variable
+const splToken = window.splToken;
+
 const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn");
 const tokenSelect=$("tokenSelect"), tokenInfo=$("tokenInfo");
 const calcBtn=$("calcBtn"), sendBtn=$("sendBtn");
 const calcLog=$("calcLog"), runLog=$("runLog");
 
-// Manual connect wallet
+// Connect wallet manually
 connectBtn.onclick=async()=>{
   if(!window.solana) return alert("Please install Phantom Wallet");
   provider=window.solana;
@@ -95,7 +98,7 @@ connectBtn.onclick=async()=>{
     disconnectBtn.classList.remove("hidden");
     const rpc=$("rpcUrl").value.trim();
     connection=new solanaWeb3.Connection(rpc||solanaWeb3.clusterApiUrl("devnet"),"confirmed");
-    await loadTokens(); // only after manual connect
+    await loadTokens(); // load tokens only after connection
   }catch(e){ alert("Error: "+e.message);}
 };
 
