@@ -32,7 +32,6 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 4px}
 <div class="card">
 <h1>Airdrop & Mass Send Widget</h1>
 <h2>Solana Network • Connect your wallet and use the tools below. <span class="pill">Beta</span></h2>
-
 <div class="row">
 <div class="col">
 <label>RPC (optional – leave blank for default)</label>
@@ -47,104 +46,21 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 4px}
 <button class="btn" id="connectBtn">Connect Wallet</button>
 </div>
 </div>
-
 <div class="tabs">
 <div class="tab active" data-tab="mass">Mass Send (SPL)</div>
 <div class="tab" data-tab="rewards">Register Reward Airdrop</div>
 <div class="tab" data-tab="claim">Claim Reward</div>
 </div>
-
-<!-- MASS SEND -->
+<!-- Panels -->
 <div id="panel-mass">
-<div class="row">
-<div class="col">
-<label>Token Mint Address (SPL)</label>
-<input id="mint" class="mono" placeholder="e.g. So11111111111111111111111111111111111111112" />
+<!-- Conteúdo Mass Send aqui -->
 </div>
-<div class="col">
-<label>Token Decimals</label>
-<input id="decimals" type="number" min="0" max="9" value="9" />
-</div>
-<div class="col">
-<label>Amount per Wallet</label>
-<input id="amountEach" type="number" step="any" placeholder="e.g. 10" />
-</div>
-</div>
-<label>Recipient Wallets (one per line)</label>
-<textarea id="destinations" placeholder="Example:\n3xe...abc\n7fD...xyz\n..."></textarea>
-
-<label>Choose Fee Option</label>
-<select id="feeOption">
-<option value="fixed">Fixed Fee – 0.5 SOL total</option>
-<option value="perTx">Per Recipient – 0.00001 SOL each</option>
-</select>
-
-<div class="row">
-<div class="col">
-<div class="small muted">The chosen fee will be charged to your wallet before sending tokens.</div>
-</div>
-<div class="col" style="max-width:220px">
-<button class="btn" id="sendMassBtn">Execute Mass Send</button>
-</div>
-</div>
-<div id="logMass" class="small muted mono"></div>
-</div>
-
-<!-- REGISTER REWARDS -->
 <div id="panel-rewards" class="hidden">
-<div class="row">
-<div class="col">
-<label>Campaign Name</label>
-<input id="campName" placeholder="e.g. Turbo Tuga Launch" />
+<!-- Conteúdo Rewards aqui -->
 </div>
-<div class="col">
-<label>Reward Token Mint (SPL)</label>
-<input id="campMint" class="mono" />
-</div>
-<div class="col">
-<label>Decimals</label>
-<input id="campDecimals" type="number" min="0" max="9" value="9" />
-</div>
-</div>
-<label>Authorized Wallets (one per line)</label>
-<textarea id="campAllow" placeholder="Wallets allowed to claim"></textarea>
-<div class="row">
-<div class="col">
-<label>Amount per Claim</label>
-<input id="campAmount" type="number" step="any" placeholder="e.g. 5" />
-</div>
-<div class="col">
-<label>Campaign Secret Key (keep safe!)</label>
-<input id="campSecret" placeholder="Used to generate claim codes" />
-</div>
-<div class="col" style="max-width:220px">
-<label>&nbsp;</label>
-<button class="btn" id="registerCampBtn">Register Campaign</button>
-</div>
-</div>
-<div class="small muted">Registration Fee: <span class="mono">0.05 SOL</span>. After payment a JSON file will be generated with the campaign data and a campaign code for users to claim.</div>
-<div id="logReg" class="small muted mono"></div>
-</div>
-
-<!-- CLAIM -->
 <div id="panel-claim" class="hidden">
-<div class="row">
-<div class="col">
-<label>Campaign Code</label>
-<input id="claimCode" placeholder="Paste the received code" />
+<!-- Conteúdo Claim aqui -->
 </div>
-<div class="col">
-<label>Campaign JSON URL</label>
-<input id="claimUrl" placeholder="https://yoursite.com/airdrop/campaign.json" />
-</div>
-<div class="col" style="max-width:220px">
-<label>&nbsp;</label>
-<button class="btn" id="claimBtn">Claim</button>
-</div>
-</div>
-<div id="logClaim" class="small muted mono"></div>
-</div>
-
 <div class="footer">
 This widget runs 100% client-side. Test first on <span class="pill">devnet</span> before using on mainnet. You can embed this page via <span class="pill">&lt;iframe&gt;</span>.
 </div>
@@ -152,7 +68,6 @@ This widget runs 100% client-side. Test first on <span class="pill">devnet</span
 </div>
 
 <script type="module">
-// Solana Web3 + SPL Token imports via jsDelivr
 import * as web3 from "https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.4/lib/index.esm.js";
 import {
   getAssociatedTokenAddress,
@@ -165,12 +80,9 @@ import {
 const $ = (id)=>document.getElementById(id);
 const log = (el,msg)=>{ el.textContent += `\n${new Date().toLocaleTimeString()} ─ ${msg}`; el.scrollTop = el.scrollHeight; };
 
-let provider = null;
-let connection = null;
-let walletPubkey = null;
-const DEFAULT_RPC = "https://api.mainnet-beta.solana.com";
+let provider=null, connection=null, walletPubkey=null;
+const DEFAULT_RPC="https://api.mainnet-beta.solana.com";
 
-// Tab navigation
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');
@@ -180,23 +92,18 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
   });
 }));
 
-// Connect wallet
 $("connectBtn").onclick = async ()=>{
   try{
-    provider = window.solana || window.phantom?.solana;
-    if(!provider) { alert("Open with Phantom or another Solana-compatible wallet in your browser."); return; }
+    provider=window.solana||window.phantom?.solana;
+    if(!provider){ alert("Open with Phantom or another Solana-compatible wallet in your browser."); return; }
     const resp = await provider.connect();
     walletPubkey = new web3.PublicKey(resp.publicKey.toString());
-    $("connectBtn").textContent = `Connected: ${walletPubkey.toString().slice(0,4)}...${walletPubkey.toString().slice(-4)}`;
-    const rpc = $("rpcUrl").value.trim() || DEFAULT_RPC;
-    connection = new web3.Connection(rpc, 'confirmed');
-  }catch(e){ alert("Failed to connect: "+e.message); }
+    $("connectBtn").textContent=`Connected: ${walletPubkey.toString().slice(0,4)}...${walletPubkey.toString().slice(-4)}`;
+    const rpc=$("rpcUrl").value.trim()||DEFAULT_RPC;
+    connection = new web3.Connection(rpc,'confirmed');
+  }catch(e){ alert("Failed to connect: "+e.message);}
 };
-
-// Function to pay fees (placeholder)
-async function payFee() {
-  console.log("TODO: implement payFee()");
-}
 </script>
 </body>
 </html>
+
