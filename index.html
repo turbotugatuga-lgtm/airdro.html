@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
 <meta charset="utf-8">
-<title>TurboTuga Mass Sender Simplificado</title>
+<title>TurboTuga Mass Sender Premium</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/@solana/web3.js@1.95.4/lib/index.iife.js"></script>
@@ -75,7 +75,7 @@ textarea { resize: vertical; min-height: 120px; }
 const $=(id)=>document.getElementById(id);
 const TREASURY="9Sexip38yhfeZD2EBDQkVRicZSY6eSK3cXxgDkgFVf8b";
 const FEE_PER_RECIPIENT_SOL=0.00005;
-let provider=null, connection=new solanaWeb3.Connection(solanaWeb3.clusterApiUrl("devnet"),"confirmed"), walletPubkey=null;
+let provider=null, connection=null, walletPubkey=null;
 let tokenList=[], selectedToken=null;
 
 const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn");
@@ -86,23 +86,29 @@ const calcLog=$("calcLog"), runLog=$("runLog");
 connectBtn.onclick=async()=>{
   if(!window.solana) return alert("Instale Phantom Wallet");
   provider=window.solana;
-  const resp=await provider.connect({onlyIfTrusted:false});
-  walletPubkey=resp.publicKey;
-  connectBtn.classList.add("hidden"); disconnectBtn.classList.remove("hidden");
-  loadTokens();
+  try{
+    const resp=await provider.connect({onlyIfTrusted:false}); // força login manual
+    walletPubkey=resp.publicKey;
+    connectBtn.classList.add("hidden"); 
+    disconnectBtn.classList.remove("hidden");
+    const rpc=$("rpcUrl").value.trim();
+    connection=new solanaWeb3.Connection(rpc||solanaWeb3.clusterApiUrl("devnet"),"confirmed");
+    await loadTokens();
+  }catch(e){ alert("Falha: "+e.message);}
 };
 
 disconnectBtn.onclick=async()=>{
-  try{if(provider?.disconnect) await provider.disconnect();}catch{}
   provider=null; walletPubkey=null; tokenList=[]; selectedToken=null;
   tokenSelect.innerHTML=`<option value="">— conecte para carregar tokens —</option>`;
-  tokenInfo.textContent=""; connectBtn.classList.remove("hidden"); disconnectBtn.classList.add("hidden");
+  tokenInfo.textContent="";
+  connectBtn.classList.remove("hidden"); 
+  disconnectBtn.classList.add("hidden");
   sendBtn.disabled=true; calcLog.textContent=""; runLog.textContent="";
 };
 
 $("uploadBtn").onclick=()=>$("fileInput").click();
 $("fileInput").addEventListener("change", async(e)=>{
-  const f=e.target.files?.[0]; if(!f)return;
+  const f=e.target.files?.[0]; if(!f) return;
   const text=await f.text();
   const wallets=text.replace(/\r/g,"\n").split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
   $("destinations").value=wallets.join("\n");
@@ -125,6 +131,7 @@ async function loadTokens(){
       if(idx===""){ selectedToken=null; tokenInfo.textContent=""; return; }
       selectedToken=tokenList[idx];
       tokenInfo.textContent=`Mint: ${selectedToken.mint} | Saldo: ${selectedToken.amount}`;
+      sendBtn.disabled=false;
     };
   }catch(e){ tokenSelect.innerHTML=`<option>Erro</option>`; tokenInfo.textContent=e.message; }
 }
@@ -169,3 +176,4 @@ sendBtn.onclick=async()=>{
 </script>
 </body>
 </html>
+
