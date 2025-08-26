@@ -2,262 +2,167 @@
 <html lang="pt-br">
 <head>
 <meta charset="utf-8">
-<title>TurboTuga Mass Sender - Produção</title>
+<title>TurboTuga Mass Sender Simplificado</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/@solana/web3.js@1.95.4/lib/index.iife.js"></script>
 <script src="https://unpkg.com/@solana/spl-token@0.4.6/lib/index.iife.js"></script>
 <style>
-body { background: linear-gradient(to bottom, #0f172a, #1e293b); font-family: 'Inter', sans-serif; color: #f1f5f9; }
-.card { @apply bg-slate-800/80 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-slate-700/50; }
-.input, select, textarea { @apply w-full px-4 py-2 rounded-xl border border-slate-600 bg-slate-900 text-slate-50 outline-none; }
-.btn { @apply inline-flex items-center justify-center gap-2 px-6 py-2 rounded-xl border border-slate-600 bg-indigo-600 hover:bg-indigo-500 hover:scale-105 transition-all text-slate-50; }
-.btn-danger { @apply bg-red-600 hover:bg-red-500; }
-.pill { @apply inline-block text-xs px-2 py-0.5 rounded-full border border-slate-600 bg-slate-700 text-slate-300; }
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
-.log { @apply mono text-xs rounded-xl p-3 border border-slate-700/50 max-h-56 overflow-auto bg-black/40; }
-.label { @apply text-sm text-slate-300 ml-1; }
-.highlight-success { @apply text-green-400; }
-.highlight-error { @apply text-red-400; }
-.highlight-warning { @apply text-yellow-400; }
-header { @apply sticky top-0 z-20 border-b border-slate-800/50 bg-slate-900/70 backdrop-blur-xl; }
+body { background: #0f172a; font-family: 'Inter', sans-serif; color: #f1f5f9; }
+.card { background: rgba(30,41,59,.85); border-radius: 1rem; padding: 1.5rem; border: 1px solid rgba(255,255,255,.1); }
+.input, select, textarea { width: 100%; padding: .5rem; border-radius: .75rem; border: 1px solid rgba(255,255,255,.2); background: #1e293b; color: #f1f5f9; }
+textarea { resize: vertical; min-height: 120px; }
+.btn { padding: .5rem 1rem; border-radius: .75rem; background: #4f46e5; color: #fff; cursor: pointer; transition: .2s; }
+.btn:hover { background: #6366f1; }
+.btn-danger { background: #dc2626; }
+.log { background: rgba(0,0,0,.4); padding: .5rem; border-radius: .5rem; font-family: monospace; max-height: 200px; overflow:auto; }
 </style>
 </head>
 <body>
-<header class="px-6 py-4 flex items-center justify-between">
-  <div class="flex items-center gap-4">
-    <div class="w-10 h-10 bg-indigo-500 rounded-xl"></div>
-    <div>
-      <h1 class="text-xl font-bold">TurboTuga Mass Sender <span class="pill">Produção</span></h1>
-      <span class="text-xs text-slate-400">Solana • Devnet/Mainnet</span>
+<div class="max-w-4xl mx-auto p-6 space-y-6">
+  <div class="flex justify-between items-center">
+    <h1 class="text-2xl font-bold">TurboTuga Mass Sender</h1>
+    <div class="space-x-2">
+      <button id="connectBtn" class="btn">Conectar carteira</button>
+      <button id="disconnectBtn" class="btn btn-danger hidden">Desconectar</button>
     </div>
   </div>
-  <div class="flex items-center gap-3">
-    <button id="connectBtn" class="btn">Conectar carteira</button>
-    <button id="disconnectBtn" class="btn btn-danger hidden">Desconectar</button>
-  </div>
-</header>
-<main class="max-w-6xl mx-auto px-6 py-8 grid lg:grid-cols-3 gap-6">
-<section class="lg:col-span-2 card space-y-5">
-<div class="flex items-center justify-between">
-  <h2 class="text-lg font-semibold">Envio em Massa de Tokens</h2>
-  <span class="text-xs text-slate-400" id="walletShort"></span>
-</div>
-<div class="grid md:grid-cols-2 gap-4">
-  <div>
-    <label class="label">RPC (opcional)</label>
-    <input id="rpcUrl" class="input" placeholder="ex.: https://api.mainnet-beta.solana.com">
-  </div>
-  <div>
-    <label class="label">Selecione um token da sua carteira</label>
-    <select id="tokenSelect" class="input"></select>
-    <div class="text-xs text-slate-400 mt-1" id="tokenInfo"></div>
-  </div>
-</div>
-<div class="grid md:grid-cols-3 gap-4">
-  <div>
-    <label class="label">Decimais</label>
-    <input id="decimals" type="number" min="0" max="9" value="9" class="input">
-  </div>
-  <div>
-    <label class="label">Quantidade por carteira</label>
-    <input id="amountEach" type="number" step="any" placeholder="ex.: 10" class="input">
-  </div>
-  <div>
-    <label class="label">Mint (opcional)</label>
-    <input id="mintManual" class="input mono" placeholder="Mint SPL (opcional)">
-  </div>
-</div>
-<div>
-  <label class="label">Carteiras de destino (uma por linha)</label>
-  <textarea id="destinations" class="input mono" style="min-height: 140px" placeholder="Exemplo:
-4xxxx...abc
-7yyyy...def"></textarea>
-  <div class="mt-2 flex items-center gap-3">
-    <input type="file" id="fileInput" class="hidden">
-    <button id="uploadBtn" class="btn">Upload .txt ou .csv</button>
-    <span class="text-xs text-slate-400">Aceitamos CSV ou TXT.</span>
+
+  <div class="card space-y-4">
+    <div>
+      <label>RPC (opcional)</label>
+      <input id="rpcUrl" class="input" placeholder="ex.: https://api.mainnet-beta.solana.com">
+    </div>
+
+    <div>
+      <label>Selecione token SPL</label>
+      <select id="tokenSelect" class="input"></select>
+      <div id="tokenInfo" class="text-sm text-gray-300 mt-1"></div>
+    </div>
+
+    <div>
+      <label>Quantidade por carteira</label>
+      <input id="amountEach" type="number" step="any" placeholder="ex.: 10" class="input">
+    </div>
+
+    <div>
+      <label>Carteiras de destino (uma por linha)</label>
+      <textarea id="destinations" class="input"></textarea>
+      <div class="mt-2 flex items-center gap-2">
+        <input type="file" id="fileInput" class="hidden">
+        <button id="uploadBtn" class="btn">Upload .txt ou .csv</button>
+      </div>
+    </div>
+
+    <div>
+      <label>Taxa por carteira</label>
+      <input type="text" class="input" value="0.00005 SOL por carteira" readonly>
+    </div>
+
+    <div class="flex space-x-2">
+      <button id="calcBtn" class="btn">Calcular taxa</button>
+      <button id="sendBtn" class="btn" disabled>Enviar</button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <pre id="calcLog" class="log"></pre>
+      <pre id="runLog" class="log"></pre>
+    </div>
   </div>
 </div>
-<div class="grid md:grid-cols-2 gap-4 mt-4">
-  <div class="card p-4">
-    <div class="font-medium mb-2">Taxa do serviço</div>
-    <label class="flex items-center gap-2 text-sm">
-      <input type="radio" name="feeType" value="fixed" checked> Fixa – <span class="mono">0.1 SOL</span>
-    </label>
-    <label class="flex items-center gap-2 text-sm mt-2">
-      <input type="radio" name="feeType" value="per"> Variável – <span class="mono">0.00005 SOL</span> por carteira
-    </label>
-  </div>
-  <div class="card p-4">
-    <div class="font-medium mb-2">Opções de ATA</div>
-    <label class="flex items-center gap-2 text-sm">
-      <input type="checkbox" id="assumeNoAta"> Criar ATA automaticamente se necessário
-    </label>
-    <div class="text-xs text-slate-400 mt-2">Taxa de rede muda se criar ATA para cada carteira.</div>
-  </div>
-</div>
-<div class="flex flex-wrap gap-3 mt-4">
-  <button id="calcBtn" class="btn">Calcular custos</button>
-  <button id="sendBtn" class="btn disabled:opacity-50 disabled:pointer-events-none" disabled>Enviar</button>
-</div>
-<div class="grid md:grid-cols-2 gap-4 mt-4">
-  <div>
-    <div class="text-sm font-medium mb-1">Pré-cálculo</div>
-    <pre id="calcLog" class="log"></pre>
-  </div>
-  <div>
-    <div class="text-sm font-medium mb-1">Execução</div>
-    <pre id="runLog" class="log"></pre>
-  </div>
-</div>
-</section>
-<aside class="card p-5">
-<div class="text-sm text-slate-300 mb-2">Status</div>
-<ul class="text-sm text-slate-400 space-y-1">
-<li>• Conecte sua carteira para listar seus tokens SPL.</li>
-<li>• Cole ou faça upload das carteiras de destino.</li>
-<li>• Escolha taxa e calcule os custos.</li>
-<li>• Clique "Enviar" para executar transações reais.</li>
-</ul>
-<div class="mt-4 text-xs text-slate-500">Teste primeiro na <span class="pill">devnet</span>.</div>
-</aside>
-</main>
 
 <script>
-const TREASURY="9Sexip38yhfeZD2EBDQkVRicZSY6eSK3cXxgDkgFVf8b";
-const FEE_FIXED_SOL=0.1;
-const FEE_PER_RECIPIENT_SOL=0.00005;
-const DEFAULT_RPC=solanaWeb3.clusterApiUrl("devnet");
 const $=(id)=>document.getElementById(id);
-const logAppend=(el,msg)=>{ el.textContent+=`${new Date().toLocaleTimeString()} — ${msg}\n`; el.scrollTop=el.scrollHeight; };
-const uniq=(arr)=>[...new Set(arr)];
-
-let provider=null, connection=new solanaWeb3.Connection(DEFAULT_RPC,"confirmed"), walletPubkey=null;
+const TREASURY="9Sexip38yhfeZD2EBDQkVRicZSY6eSK3cXxgDkgFVf8b";
+const FEE_PER_RECIPIENT_SOL=0.00005;
+let provider=null, connection=new solanaWeb3.Connection(solanaWeb3.clusterApiUrl("devnet"),"confirmed"), walletPubkey=null;
 let tokenList=[], selectedToken=null;
 
-const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn"), walletShort=$("walletShort");
+const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn");
 const tokenSelect=$("tokenSelect"), tokenInfo=$("tokenInfo");
 const calcBtn=$("calcBtn"), sendBtn=$("sendBtn");
 const calcLog=$("calcLog"), runLog=$("runLog");
 
 connectBtn.onclick=async()=>{
-  try{
-    if(!window.solana) return alert("Instale Phantom Wallet");
-    provider=window.solana;
-    const resp=await provider.connect({onlyIfTrusted:false});
-    walletPubkey=resp.publicKey;
-    walletShort.textContent=`Wallet: ${walletPubkey.toBase58().slice(0,4)}...${walletPubkey.toBase58().slice(-4)}`;
-    connectBtn.classList.add("hidden"); disconnectBtn.classList.remove("hidden");
-
-    const rpc=$("rpcUrl").value.trim();
-    if(rpc) connection=new solanaWeb3.Connection(rpc,"confirmed");
-    await loadTokens();
-  }catch(e){ alert("Falha: "+e.message);}
+  if(!window.solana) return alert("Instale Phantom Wallet");
+  provider=window.solana;
+  const resp=await provider.connect({onlyIfTrusted:false});
+  walletPubkey=resp.publicKey;
+  connectBtn.classList.add("hidden"); disconnectBtn.classList.remove("hidden");
+  loadTokens();
 };
 
 disconnectBtn.onclick=async()=>{
   try{if(provider?.disconnect) await provider.disconnect();}catch{}
   provider=null; walletPubkey=null; tokenList=[]; selectedToken=null;
   tokenSelect.innerHTML=`<option value="">— conecte para carregar tokens —</option>`;
-  tokenInfo.textContent=""; walletShort.textContent="";
-  connectBtn.classList.remove("hidden"); disconnectBtn.classList.add("hidden");
+  tokenInfo.textContent=""; connectBtn.classList.remove("hidden"); disconnectBtn.classList.add("hidden");
   sendBtn.disabled=true; calcLog.textContent=""; runLog.textContent="";
 };
 
 $("uploadBtn").onclick=()=>$("fileInput").click();
-$("fileInput").addEventListener("change",async(e)=>{
+$("fileInput").addEventListener("change", async(e)=>{
   const f=e.target.files?.[0]; if(!f)return;
   const text=await f.text();
-  const parts=text.replace(/\r/g,"\n").split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
-  $("destinations").value=uniq(parts).join("\n");
+  const wallets=text.replace(/\r/g,"\n").split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
+  $("destinations").value=wallets.join("\n");
 });
 
 async function loadTokens(){
-  tokenList=[]; tokenSelect.innerHTML=`<option>Carregando...</option>`;
+  tokenSelect.innerHTML=`<option>Carregando...</option>`;
   try{
     const resp=await connection.getParsedTokenAccountsByOwner(walletPubkey,{programId:splToken.TOKEN_PROGRAM_ID});
-    const rows=[];
+    tokenList=[];
     for(const {account} of resp.value){
       const info=account.data.parsed.info;
       const ui=Number(info.tokenAmount.uiAmountString||0);
-      if(ui>0) rows.push({mint:info.mint,decimals:info.tokenAmount.decimals,amount:ui});
+      if(ui>0) tokenList.push({mint:info.mint, decimals:info.tokenAmount.decimals, amount:ui});
     }
-    tokenList=rows.sort((a,b)=>a.mint.localeCompare(b.mint));
-    if(tokenList.length===0){tokenSelect.innerHTML=`<option>Nenhum token com saldo</option>`; tokenInfo.textContent=""; return;}
+    if(tokenList.length===0){ tokenSelect.innerHTML=`<option>Nenhum token com saldo</option>`; tokenInfo.textContent=""; return; }
     tokenSelect.innerHTML=`<option value="">— selecione —</option>`+tokenList.map((t,i)=>`<option value="${i}">${t.mint.slice(0,6)}…${t.mint.slice(-6)} • ${t.amount}</option>`).join("");
-    tokenSelect.onchange=()=>{ 
+    tokenSelect.onchange=()=>{
       const idx=tokenSelect.value;
-      if(idx===""){selectedToken=null; tokenInfo.textContent=""; return;}
-      selectedToken={mint:tokenList[idx].mint, decimals:tokenList[idx].decimals};
-      $("decimals").value=tokenList[idx].decimals;
-      $("mintManual").value=tokenList[idx].mint;
-      tokenInfo.textContent=`Mint: ${tokenList[idx].mint} | Dec: ${tokenList[idx].decimals}`;
+      if(idx===""){ selectedToken=null; tokenInfo.textContent=""; return; }
+      selectedToken=tokenList[idx];
+      tokenInfo.textContent=`Mint: ${selectedToken.mint} | Saldo: ${selectedToken.amount}`;
     };
-  }catch(e){tokenSelect.innerHTML=`<option>Erro</option>`; tokenInfo.textContent=e.message;}
+  }catch(e){ tokenSelect.innerHTML=`<option>Erro</option>`; tokenInfo.textContent=e.message; }
 }
 
-function isValidSolAddress(addr){try{new solanaWeb3.PublicKey(addr); return true}catch{return false;}}
-
-function calcServiceFee(numRecipients){
-  const feeType=document.querySelector('input[name="feeType"]:checked')?.value||"fixed";
-  return feeType==="fixed"?FEE_FIXED_SOL:FEE_PER_RECIPIENT_SOL*numRecipients;
-}
-
-async function estimateFee(mint, assumeNoAta){
-  try{
-    const dummyDest=solanaWeb3.Keypair.generate().publicKey;
-    const mintPk=new solanaWeb3.PublicKey(mint);
-    const ataFrom=await splToken.getAssociatedTokenAddress(mintPk,walletPubkey);
-    const ataTo=await splToken.getAssociatedTokenAddress(mintPk,dummyDest);
-    const instrs=[splToken.createTransferInstruction(ataFrom,ataTo,walletPubkey,1,[],splToken.TOKEN_PROGRAM_ID)];
-    if(assumeNoAta) instrs.push(splToken.createAssociatedTokenAccountInstruction(walletPubkey,dummyDest,mintPk,walletPubkey));
-    const tx=new solanaWeb3.Transaction().add(...instrs);
-    const {value}=await connection.getFeeForMessage(tx.compileMessage());
-    return value/solanaWeb3.LAMPORTS_PER_SOL;
-  }catch{return 0;}
-}
+function isValidSolAddress(addr){ try{new solanaWeb3.PublicKey(addr); return true}catch{return false;} }
 
 calcBtn.onclick=async()=>{
-  calcLog.textContent="Calculando…"; runLog.textContent="";
+  calcLog.textContent="";
+  if(!selectedToken){ calcLog.textContent="Selecione um token."; return; }
   const dests=$("destinations").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const invalid=dests.filter(d=>!isValidSolAddress(d));
-  if(invalid.length>0){calcLog.innerHTML=`<span class="highlight-error">Carteiras inválidas:</span>\n${invalid.join("\n")}`; sendBtn.disabled=true; return;}
-  if(!selectedToken){calcLog.innerHTML=`<span class="highlight-warning">Selecione um token.</span>`; sendBtn.disabled=true; return;}
-  const amt=Number($("amountEach").value); if(!amt || amt<=0){calcLog.innerHTML=`<span class="highlight-warning">Digite quantidade válida.</span>`; sendBtn.disabled=true; return;}
-  const feeService=calcServiceFee(dests.length);
-  const feeNetwork=await estimateFee(selectedToken.mint,$("assumeNoAta").checked)*dests.length;
+  if(invalid.length>0){ calcLog.textContent=`Carteiras inválidas:\n${invalid.join("\n")}`; sendBtn.disabled=true; return; }
+  const fee=FEE_PER_RECIPIENT_SOL*dests.length;
   const balance=await connection.getBalance(walletPubkey)/solanaWeb3.LAMPORTS_PER_SOL;
-  calcLog.innerHTML=`<span class="highlight-success">Carteiras:</span> ${dests.length}\n<span class="highlight-success">Taxa serviço:</span> ${feeService} SOL\n<span class="highlight-success">Taxa rede:</span> ${feeNetwork.toFixed(6)} SOL\n<span class="highlight-success">Saldo carteira:</span> ${balance.toFixed(6)} SOL`;
-  sendBtn.disabled=(balance<feeService+feeNetwork);
+  calcLog.textContent=`Destinatários: ${dests.length}\nTaxa rede: ${fee.toFixed(6)} SOL\nSaldo: ${balance.toFixed(6)} SOL`;
+  sendBtn.disabled=(balance<fee);
 };
 
 sendBtn.onclick=async()=>{
-  runLog.textContent="Iniciando envio real…\n";
+  runLog.textContent="Enviando…\n";
   const dests=$("destinations").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const amt=Number($("amountEach").value);
-  const decimals=Number($("decimals").value);
+  const decimals=selectedToken.decimals;
   const mint=new solanaWeb3.PublicKey(selectedToken.mint);
-  const feeService=calcServiceFee(dests.length);
   let sentCount=0;
-
   for(const dest of dests){
     try{
       const destPk=new solanaWeb3.PublicKey(dest);
       const ataFrom=await splToken.getAssociatedTokenAddress(mint,walletPubkey);
       const ataTo=await splToken.getAssociatedTokenAddress(mint,destPk);
       const instrs=[];
-      // criar ATA se necessário
       const resp=await connection.getAccountInfo(ataTo);
       if(!resp) instrs.push(splToken.createAssociatedTokenAccountInstruction(walletPubkey,destPk,mint,walletPubkey));
-      // transfer
       instrs.push(splToken.createTransferInstruction(ataFrom,ataTo,walletPubkey,amt*Math.pow(10,decimals),[],splToken.TOKEN_PROGRAM_ID));
       const tx=new solanaWeb3.Transaction().add(...instrs);
       const sig=await solanaWeb3.sendAndConfirmTransaction(connection,tx,[provider]);
-      runLog.textContent+=`✅ ${dest} enviado com sucesso: ${sig}\n`; sentCount++;
-    }catch(e){
-      runLog.textContent+=`❌ ${dest} falhou: ${e.message}\n`;
-    }
+      runLog.textContent+=`✅ ${dest} enviado: ${sig}\n`; sentCount++;
+    }catch(e){ runLog.textContent+=`❌ ${dest} falhou: ${e.message}\n`; }
   }
   runLog.textContent+=`\nEnvio concluído: ${sentCount}/${dests.length}`;
 };
