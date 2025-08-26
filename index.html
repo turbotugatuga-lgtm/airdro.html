@@ -36,7 +36,9 @@ textarea { resize: vertical; min-height: 120px; }
 
     <div>
       <label>Select SPL Token</label>
-      <select id="tokenSelect" class="input"></select>
+      <select id="tokenSelect" class="input">
+        <option value="">— connect to load tokens —</option>
+      </select>
       <div id="tokenInfo" class="text-sm text-gray-300 mt-1"></div>
     </div>
 
@@ -82,11 +84,12 @@ const tokenSelect=$("tokenSelect"), tokenInfo=$("tokenInfo");
 const calcBtn=$("calcBtn"), sendBtn=$("sendBtn");
 const calcLog=$("calcLog"), runLog=$("runLog");
 
+// Connect wallet manually
 connectBtn.onclick=async()=>{
   if(!window.solana) return alert("Please install Phantom Wallet");
   provider=window.solana;
   try{
-    const resp=await provider.connect({onlyIfTrusted:false});
+    const resp=await provider.connect({onlyIfTrusted:false}); // Manual connect
     walletPubkey=resp.publicKey;
     connectBtn.classList.add("hidden"); 
     disconnectBtn.classList.remove("hidden");
@@ -96,8 +99,8 @@ connectBtn.onclick=async()=>{
   }catch(e){ alert("Error: "+e.message);}
 };
 
+// Disconnect wallet (manual reset)
 disconnectBtn.onclick=()=>{
-  // Reset all state
   provider=null; walletPubkey=null; tokenList=[]; selectedToken=null;
   tokenSelect.innerHTML=`<option value="">— connect to load tokens —</option>`;
   tokenInfo.textContent="";
@@ -106,6 +109,7 @@ disconnectBtn.onclick=()=>{
   sendBtn.disabled=true; calcLog.textContent=""; runLog.textContent="";
 };
 
+// File upload for destinations
 $("uploadBtn").onclick=()=>$("fileInput").click();
 $("fileInput").addEventListener("change", async(e)=>{
   const f=e.target.files?.[0]; if(!f) return;
@@ -114,6 +118,7 @@ $("fileInput").addEventListener("change", async(e)=>{
   $("destinations").value=wallets.join("\n");
 });
 
+// Load SPL tokens from wallet
 async function loadTokens(){
   tokenSelect.innerHTML=`<option>Loading...</option>`;
   try{
@@ -133,7 +138,7 @@ async function loadTokens(){
       tokenList.map((t,i)=>`<option value="${i}">${t.mint.slice(0,6)}…${t.mint.slice(-6)} • ${t.amount}</option>`).join("");
     tokenSelect.onchange=()=>{
       const idx=tokenSelect.value;
-      if(idx===""){ selectedToken=null; tokenInfo.textContent=""; return; }
+      if(idx===""){ selectedToken=null; tokenInfo.textContent=""; sendBtn.disabled=true; return; }
       selectedToken=tokenList[idx];
       tokenInfo.textContent=`Mint: ${selectedToken.mint} | Balance: ${selectedToken.amount}`;
       sendBtn.disabled=false;
@@ -141,8 +146,10 @@ async function loadTokens(){
   }catch(e){ tokenSelect.innerHTML=`<option>Error</option>`; tokenInfo.textContent=e.message; }
 }
 
+// Validate Solana address
 function isValidSolAddress(addr){ try{new solanaWeb3.PublicKey(addr); return true}catch{return false;} }
 
+// Calculate fee
 calcBtn.onclick=async()=>{
   calcLog.textContent="";
   if(!selectedToken){ calcLog.textContent="Select a token."; return; }
@@ -155,6 +162,7 @@ calcBtn.onclick=async()=>{
   sendBtn.disabled=(balance<fee);
 };
 
+// Send tokens
 sendBtn.onclick=async()=>{
   runLog.textContent="Sending…\n";
   const dests=$("destinations").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
