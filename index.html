@@ -29,7 +29,7 @@ textarea { resize: vertical; min-height: 120px; }
   <div class="card space-y-4">
     <div>
       <label>RPC (optional)</label>
-      <input id="rpcUrl" class="input" placeholder="ex.: https://api.mainnet-beta.solana.com">
+      <input id="rpcUrl" class="input" placeholder="Leave empty to auto-detect network">
     </div>
 
     <div>
@@ -105,8 +105,15 @@ connectBtn.onclick=async()=>{
     walletPubkey=resp.publicKey;
     connectBtn.classList.add("hidden"); 
     disconnectBtn.classList.remove("hidden");
-    const rpc=$("rpcUrl").value.trim();
-    connection=new solanaWeb3.Connection(rpc||solanaWeb3.clusterApiUrl("devnet"),"confirmed");
+
+    // Detect network automatically
+    const network=await provider.request({method:"getCluster"});
+    const rpcInput=$("rpcUrl").value.trim();
+    let rpcUrl=rpcInput;
+    if(!rpcInput){
+      rpcUrl = network==="mainnet-beta" ? solanaWeb3.clusterApiUrl("mainnet-beta") : solanaWeb3.clusterApiUrl("devnet");
+    }
+    connection=new solanaWeb3.Connection(rpcUrl,"confirmed");
     await loadTokens();
   }catch(e){ alert("Error: "+e.message);}
 };
@@ -165,9 +172,8 @@ function isValidSolAddress(addr){ try{new solanaWeb3.PublicKey(addr); return tru
 // Calculate fee
 calcBtn.onclick=async()=>{
   calcLog.textContent="";
-  if($("mintInput").value.trim()==="") {
-    if(!selectedToken){ calcLog.textContent="Select a token."; return; }
-  }
+  const mintInput=$("mintInput").value.trim();
+  if(mintInput==="" && !selectedToken){ calcLog.textContent="Select a token or paste a mint."; return; }
   const dests=$("destinations").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const invalid=dests.filter(d=>!isValidSolAddress(d));
   if(invalid.length>0){ calcLog.textContent=`Invalid addresses:\n${invalid.join("\n")}`; sendBtn.disabled=true; return; }
@@ -187,7 +193,7 @@ sendBtn.onclick=async()=>{
   let mint;
   if(mintStr!==""){
     mint=new solanaWeb3.PublicKey(mintStr);
-    decimals=9; // default decimals, could add fetch logic
+    decimals=9; // default, could fetch actual decimals
   } else if(selectedToken){
     mint=new solanaWeb3.PublicKey(selectedToken.mint);
     decimals=selectedToken.decimals;
