@@ -5,8 +5,6 @@
 <title>TurboTuga Mass Sender</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://unpkg.com/@solana/web3.js@1.95.4/lib/index.iife.js"></script>
-<script src="https://unpkg.com/@solana/spl-token@0.4.6/lib/index.iife.js"></script>
 <style>
 body { background: #0f172a; font-family: 'Inter', sans-serif; color: #f1f5f9; }
 .card { background: rgba(30,41,59,.85); border-radius: 1rem; padding: 1.5rem; border: 1px solid rgba(255,255,255,.1); }
@@ -35,7 +33,12 @@ textarea { resize: vertical; min-height: 120px; }
     </div>
 
     <div>
-      <label>Select SPL Token</label>
+      <label>Paste Token Mint (optional, overrides wallet tokens)</label>
+      <input id="mintInput" class="input" placeholder="e.g. So11111111111111111111111111111111111111112">
+    </div>
+
+    <div>
+      <label>Select SPL Token from Wallet</label>
       <select id="tokenSelect" class="input">
         <option value="">— connect wallet to load tokens —</option>
       </select>
@@ -73,25 +76,27 @@ textarea { resize: vertical; min-height: 120px; }
   </div>
 </div>
 
-<script>
+<script type="module">
+import * as solanaWeb3 from "https://esm.sh/@solana/web3.js@1.95.4";
+import {
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  createTransferInstruction,
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID
+} from "https://esm.sh/@solana/spl-token@0.4.6";
+
 const $=(id)=>document.getElementById(id);
 const FEE_PER_RECIPIENT_SOL=0.00005;
 let provider=null, connection=null, walletPubkey=null;
 let tokenList=[], selectedToken=null;
-
-// Use IIFE global
-const splToken = window.splToken;
-
-// Define constants manually
-const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
-const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey("ATokenGPvRZt31k3d87e1z8H1y76h8o6bntU6xzfsPQ3");
 
 const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn");
 const tokenSelect=$("tokenSelect"), tokenInfo=$("tokenInfo");
 const calcBtn=$("calcBtn"), sendBtn=$("sendBtn");
 const calcLog=$("calcLog"), runLog=$("runLog");
 
-// Connect wallet manually
+// Connect wallet
 connectBtn.onclick=async()=>{
   if(!window.solana) return alert("Please install Phantom Wallet");
   provider=window.solana;
@@ -129,7 +134,7 @@ $("fileInput").addEventListener("change", async(e)=>{
 async function loadTokens(){
   tokenSelect.innerHTML=`<option>Loading...</option>`;
   try{
-    const resp=await connection.getParsedTokenAccountsByOwner(walletPubkey,{programId: TOKEN_PROGRAM_ID});
+    const resp=await connection.getParsedTokenAccountsByOwner(walletPubkey,{programId:TOKEN_PROGRAM_ID});
     tokenList=[];
     if(!resp.value || resp.value.length===0){
       tokenSelect.innerHTML=`<option>No tokens found</option>`; return;
@@ -160,7 +165,9 @@ function isValidSolAddress(addr){ try{new solanaWeb3.PublicKey(addr); return tru
 // Calculate fee
 calcBtn.onclick=async()=>{
   calcLog.textContent="";
-  if(!selectedToken){ calcLog.textContent="Select a token."; return; }
+  if($("mintInput").value.trim()==="") {
+    if(!selectedToken){ calcLog.textContent="Select a token."; return; }
+  }
   const dests=$("destinations").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const invalid=dests.filter(d=>!isValidSolAddress(d));
   if(invalid.length>0){ calcLog.textContent=`Invalid addresses:\n${invalid.join("\n")}`; sendBtn.disabled=true; return; }
@@ -175,18 +182,27 @@ sendBtn.onclick=async()=>{
   runLog.textContent="Sending…\n";
   const dests=$("destinations").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const amt=Number($("amountEach").value);
-  const decimals=selectedToken.decimals;
-  const mint=new solanaWeb3.PublicKey(selectedToken.mint);
+  let mintStr=$("mintInput").value.trim();
+  let decimals=0;
+  let mint;
+  if(mintStr!==""){
+    mint=new solanaWeb3.PublicKey(mintStr);
+    decimals=9; // default decimals, could add fetch logic
+  } else if(selectedToken){
+    mint=new solanaWeb3.PublicKey(selectedToken.mint);
+    decimals=selectedToken.decimals;
+  } else { runLog.textContent="No token selected"; return; }
+
   let sentCount=0;
   for(const dest of dests){
     try{
       const destPk=new solanaWeb3.PublicKey(dest);
-      const ataFrom=await splToken.getAssociatedTokenAddress(mint,walletPubkey);
-      const ataTo=await splToken.getAssociatedTokenAddress(mint,destPk);
+      const ataFrom=await getAssociatedTokenAddress(mint,walletPubkey);
+      const ataTo=await getAssociatedTokenAddress(mint,destPk);
       const instrs=[];
       const resp=await connection.getAccountInfo(ataTo);
-      if(!resp) instrs.push(splToken.createAssociatedTokenAccountInstruction(walletPubkey,destPk,mint,walletPubkey, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID));
-      instrs.push(splToken.createTransferInstruction(ataFrom,ataTo,walletPubkey,amt*Math.pow(10,decimals),[],TOKEN_PROGRAM_ID));
+      if(!resp) instrs.push(createAssociatedTokenAccountInstruction(walletPubkey,destPk,mint,walletPubkey, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID));
+      instrs.push(createTransferInstruction(ataFrom,ataTo,walletPubkey,amt*Math.pow(10,decimals),[],TOKEN_PROGRAM_ID));
       const tx=new solanaWeb3.Transaction().add(...instrs);
       const sig=await provider.signAndSendTransaction(tx);
       runLog.textContent+=`✅ ${dest} sent: ${sig}\n`; sentCount++;
