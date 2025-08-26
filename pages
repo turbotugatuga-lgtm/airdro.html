@@ -1,23 +1,4 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meu Projeto</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <h1>Meu Projeto no GitHub Pages 🚀</h1>
-  <script src="script.js"></script>
-</body>
-</html>
-git init
-git branch -M main
-git remote add origin https://github.com/seu-usuario/seu-repo.git
-git add .
-git commit -m "Primeiro commit - adiciona projeto"
-git push origin main
-* DOTIPE html .
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -164,18 +145,22 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 4px}
 <div id="logClaim" class="small muted mono"></div>
 </div>
 
-* html lang="en">
-cabeça
-* meta-charset="utf-8" />
-* meta name= "viewport" conteúdo="width=largura do dispositivo, escala inicial=1" />
-* Título>Airdrop e Mass Send Widget ^ Solana >
+<div class="footer">
+This widget runs 100% client-side. Test first on <span class="pill">devnet</span> before using on mainnet. You can embed this page via <span class="pill">&lt;iframe&gt;</span>.
+</div>
+</div>
+</div>
 
 <script type="module">
-import * as web3 from "https://esm.sh/@solana/web3.js@1.95.4";
+// Solana Web3 + SPL Token imports via jsDelivr
+import * as web3 from "https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.4/lib/index.esm.js";
 import {
-  getAssociatedTokenAddress, createAssociatedTokenAccountInstruction,
-  createTransferInstruction, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID
-} from "https://esm.sh/@solana/spl-token@0.4.6";
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  createTransferInstruction,
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID
+} from "https://cdn.jsdelivr.net/npm/@solana/spl-token@0.4.6/lib/index.esm.js";
 
 const $ = (id)=>document.getElementById(id);
 const log = (el,msg)=>{ el.textContent += `\n${new Date().toLocaleTimeString()} ─ ${msg}`; el.scrollTop = el.scrollHeight; };
@@ -185,15 +170,17 @@ let connection = null;
 let walletPubkey = null;
 const DEFAULT_RPC = "https://api.mainnet-beta.solana.com";
 
+// Tab navigation
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');
   const target = t.getAttribute('data-tab');
   ["mass","rewards","claim"].forEach(id=>{
-* estilo >
+    $("panel-"+id).classList.toggle('hidden', id!==target);
   });
 }));
 
+// Connect wallet
 $("connectBtn").onclick = async ()=>{
   try{
     provider = window.solana || window.phantom?.solana;
@@ -206,5 +193,10 @@ $("connectBtn").onclick = async ()=>{
   }catch(e){ alert("Failed to connect: "+e.message); }
 };
 
-// Function to pay fees
-async function payFee
+// Function to pay fees (placeholder)
+async function payFee() {
+  console.log("TODO: implement payFee()");
+}
+</script>
+</body>
+</html>
