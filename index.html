@@ -97,6 +97,7 @@ connectBtn.onclick=async()=>{
 };
 
 disconnectBtn.onclick=()=>{
+  // Reset all state
   provider=null; walletPubkey=null; tokenList=[]; selectedToken=null;
   tokenSelect.innerHTML=`<option value="">— connect to load tokens —</option>`;
   tokenInfo.textContent="";
