@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <title>TurboTuga Mass Sender</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.4/lib/index.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@solana/spl-token@0.4.6/dist/index.iife.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
 body { background: #0f172a; font-family: 'Inter', sans-serif; color: #f1f5f9; }
@@ -27,11 +29,6 @@ textarea { resize: vertical; min-height: 120px; }
   </div>
 
   <div class="card space-y-4">
-    <div>
-      <label>RPC (optional)</label>
-      <input id="rpcUrl" class="input" placeholder="Leave empty to auto-detect network">
-    </div>
-
     <div>
       <label>Paste Token Mint (optional, overrides wallet tokens)</label>
       <input id="mintInput" class="input" placeholder="e.g. So11111111111111111111111111111111111111112">
@@ -76,16 +73,7 @@ textarea { resize: vertical; min-height: 120px; }
   </div>
 </div>
 
-<script type="module">
-import * as solanaWeb3 from "https://esm.sh/@solana/web3.js@1.95.4";
-import {
-  getAssociatedTokenAddress,
-  createAssociatedTokenAccountInstruction,
-  createTransferInstruction,
-  TOKEN_PROGRAM_ID,
-  ASSOCIATED_TOKEN_PROGRAM_ID
-} from "https://esm.sh/@solana/spl-token@0.4.6";
-
+<script>
 const $=(id)=>document.getElementById(id);
 const FEE_PER_RECIPIENT_SOL=0.00005;
 let provider=null, connection=null, walletPubkey=null;
@@ -105,15 +93,7 @@ connectBtn.onclick=async()=>{
     walletPubkey=resp.publicKey;
     connectBtn.classList.add("hidden"); 
     disconnectBtn.classList.remove("hidden");
-
-    // Detect network automatically
-    const network=await provider.request({method:"getCluster"});
-    const rpcInput=$("rpcUrl").value.trim();
-    let rpcUrl=rpcInput;
-    if(!rpcInput){
-      rpcUrl = network==="mainnet-beta" ? solanaWeb3.clusterApiUrl("mainnet-beta") : solanaWeb3.clusterApiUrl("devnet");
-    }
-    connection=new solanaWeb3.Connection(rpcUrl,"confirmed");
+    connection=new solanaWeb3.Connection(solanaWeb3.clusterApiUrl("mainnet-beta"),"confirmed");
     await loadTokens();
   }catch(e){ alert("Error: "+e.message);}
 };
@@ -141,7 +121,7 @@ $("fileInput").addEventListener("change", async(e)=>{
 async function loadTokens(){
   tokenSelect.innerHTML=`<option>Loading...</option>`;
   try{
-    const resp=await connection.getParsedTokenAccountsByOwner(walletPubkey,{programId:TOKEN_PROGRAM_ID});
+    const resp=await connection.getParsedTokenAccountsByOwner(walletPubkey, {programId:splToken.TOKEN_PROGRAM_ID});
     tokenList=[];
     if(!resp.value || resp.value.length===0){
       tokenSelect.innerHTML=`<option>No tokens found</option>`; return;
@@ -193,7 +173,7 @@ sendBtn.onclick=async()=>{
   let mint;
   if(mintStr!==""){
     mint=new solanaWeb3.PublicKey(mintStr);
-    decimals=9; // default, could fetch actual decimals
+    decimals=9;
   } else if(selectedToken){
     mint=new solanaWeb3.PublicKey(selectedToken.mint);
     decimals=selectedToken.decimals;
@@ -203,12 +183,12 @@ sendBtn.onclick=async()=>{
   for(const dest of dests){
     try{
       const destPk=new solanaWeb3.PublicKey(dest);
-      const ataFrom=await getAssociatedTokenAddress(mint,walletPubkey);
-      const ataTo=await getAssociatedTokenAddress(mint,destPk);
+      const ataFrom=await splToken.getAssociatedTokenAddress(mint,walletPubkey);
+      const ataTo=await splToken.getAssociatedTokenAddress(mint,destPk);
       const instrs=[];
       const resp=await connection.getAccountInfo(ataTo);
-      if(!resp) instrs.push(createAssociatedTokenAccountInstruction(walletPubkey,destPk,mint,walletPubkey, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID));
-      instrs.push(createTransferInstruction(ataFrom,ataTo,walletPubkey,amt*Math.pow(10,decimals),[],TOKEN_PROGRAM_ID));
+      if(!resp) instrs.push(splToken.createAssociatedTokenAccountInstruction(walletPubkey,destPk,mint,walletPubkey, splToken.ASSOCIATED_TOKEN_PROGRAM_ID, splToken.TOKEN_PROGRAM_ID));
+      instrs.push(splToken.createTransferInstruction(ataFrom,ataTo,walletPubkey,amt*Math.pow(10,decimals),[],splToken.TOKEN_PROGRAM_ID));
       const tx=new solanaWeb3.Transaction().add(...instrs);
       const sig=await provider.signAndSendTransaction(tx);
       runLog.textContent+=`✅ ${dest} sent: ${sig}\n`; sentCount++;
