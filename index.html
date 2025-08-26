@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Airdrop & Mass Send Widget – Solana</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Airdrop & Mass Send Widget – Solana (Devnet)</title>
 <style>
 :root{--bg:#0b1220;--panel:#101826;--muted:#90a3b5;--text:#e8f0ff;--accent:#7cc4ff;--ok:#34d399;--warn:#f59e0b;--err:#ef4444}
 *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#0a0f1c,#0d1220 40%,#0d1426);color:var(--text)}
@@ -31,38 +31,93 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 4px}
 <div class="container">
 <div class="card">
 <h1>Airdrop & Mass Send Widget</h1>
-<h2>Solana Network • Connect your wallet and use the tools below. <span class="pill">Beta</span></h2>
+<h2>Solana Devnet • Connect your wallet and test the tools below <span class="pill">Beta</span></h2>
+
 <div class="row">
-<div class="col">
-<label>RPC (optional – leave blank for default)</label>
-<input id="rpcUrl" placeholder="e.g. https://api.mainnet-beta.solana.com">
-</div>
-<div class="col">
-<label>Site Treasury Wallet (receives SOL fees)</label>
-<input id="treasury" class="mono" value="9Sexip38yhfeZD2EBDQkVRicZSY6eSK3cXxgDkgFVf8b" readonly />
-</div>
 <div class="col" style="max-width:220px">
 <label>&nbsp;</label>
 <button class="btn" id="connectBtn">Connect Wallet</button>
 </div>
 </div>
+
 <div class="tabs">
 <div class="tab active" data-tab="mass">Mass Send (SPL)</div>
-<div class="tab" data-tab="rewards">Register Reward Airdrop</div>
+<div class="tab" data-tab="rewards">Register Reward</div>
 <div class="tab" data-tab="claim">Claim Reward</div>
 </div>
-<!-- Panels -->
+
+<!-- MASS SEND -->
 <div id="panel-mass">
-<!-- Conteúdo Mass Send aqui -->
+<div class="row">
+<div class="col">
+<label>Token Mint Address (SPL)</label>
+<input id="mint" class="mono" placeholder="So11111111111111111111111111111111111111112">
 </div>
+<div class="col">
+<label>Decimals</label>
+<input id="decimals" type="number" min="0" max="9" value="9">
+</div>
+<div class="col">
+<label>Amount per Wallet</label>
+<input id="amountEach" type="number" step="any" placeholder="10">
+</div>
+</div>
+<label>Recipient Wallets (one per line)</label>
+<textarea id="destinations" placeholder="3xe...abc\n7fD...xyz\n..."></textarea>
+<div class="row">
+<div class="col" style="max-width:220px">
+<button class="btn" id="sendMassBtn">Execute Mass Send</button>
+</div>
+</div>
+<div id="logMass" class="small muted mono"></div>
+</div>
+
+<!-- REGISTER REWARD -->
 <div id="panel-rewards" class="hidden">
-<!-- Conteúdo Rewards aqui -->
+<div class="row">
+<div class="col">
+<label>Campaign Name</label>
+<input id="campName" placeholder="Turbo Tuga Dev">
 </div>
+<div class="col">
+<label>Reward Token Mint</label>
+<input id="campMint" class="mono">
+</div>
+<div class="col">
+<label>Decimals</label>
+<input id="campDecimals" type="number" min="0" max="9" value="9">
+</div>
+</div>
+<label>Authorized Wallets (one per line)</label>
+<textarea id="campAllow" placeholder="Wallets allowed to claim"></textarea>
+<div class="row">
+<div class="col">
+<label>Amount per Claim</label>
+<input id="campAmount" type="number" step="any" placeholder="5">
+</div>
+<div class="col" style="max-width:220px">
+<button class="btn" id="registerCampBtn">Register Campaign</button>
+</div>
+</div>
+<div id="logReg" class="small muted mono"></div>
+</div>
+
+<!-- CLAIM -->
 <div id="panel-claim" class="hidden">
-<!-- Conteúdo Claim aqui -->
+<div class="row">
+<div class="col">
+<label>Campaign Code</label>
+<input id="claimCode" placeholder="Paste the code">
 </div>
+<div class="col" style="max-width:220px">
+<button class="btn" id="claimBtn">Claim</button>
+</div>
+</div>
+<div id="logClaim" class="small muted mono"></div>
+</div>
+
 <div class="footer">
-This widget runs 100% client-side. Test first on <span class="pill">devnet</span> before using on mainnet. You can embed this page via <span class="pill">&lt;iframe&gt;</span>.
+Runs 100% client-side. Use devnet before mainnet.
 </div>
 </div>
 </div>
@@ -81,8 +136,10 @@ const $ = (id)=>document.getElementById(id);
 const log = (el,msg)=>{ el.textContent += `\n${new Date().toLocaleTimeString()} ─ ${msg}`; el.scrollTop = el.scrollHeight; };
 
 let provider=null, connection=null, walletPubkey=null;
-const DEFAULT_RPC="https://api.mainnet-beta.solana.com";
+const TREASURY_WALLET = "9Sexip38yhfeZD2EBDQkVRicZSY6eSK3cXxgDkgFVf8b";
+const DEFAULT_RPC = "https://api.devnet.solana.com";
 
+// Tabs
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');
@@ -92,18 +149,31 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
   });
 }));
 
+// Connect Wallet
 $("connectBtn").onclick = async ()=>{
   try{
-    provider=window.solana||window.phantom?.solana;
-    if(!provider){ alert("Open with Phantom or another Solana-compatible wallet in your browser."); return; }
+    provider = window.solana || window.phantom?.solana;
+    if(!provider){ alert("Install Phantom Wallet."); return; }
     const resp = await provider.connect();
     walletPubkey = new web3.PublicKey(resp.publicKey.toString());
     $("connectBtn").textContent=`Connected: ${walletPubkey.toString().slice(0,4)}...${walletPubkey.toString().slice(-4)}`;
-    const rpc=$("rpcUrl").value.trim()||DEFAULT_RPC;
-    connection = new web3.Connection(rpc,'confirmed');
+    connection = new web3.Connection(DEFAULT_RPC,'confirmed');
   }catch(e){ alert("Failed to connect: "+e.message);}
 };
-</script>
-</body>
-</html>
 
+// Mass Send
+$("sendMassBtn").onclick = async ()=>{
+  const mint = $("mint").value.trim();
+  const decimals = parseInt($("decimals").value);
+  const amount = parseFloat($("amountEach").value);
+  const dests = $("destinations").value.trim().split("\n").filter(x=>x);
+  const logEl = $("logMass");
+
+  if(!walletPubkey){ alert("Connect wallet first."); return;}
+  if(!mint || !amount || dests.length===0){ log(logEl,"Fill all fields."); return;}
+
+  log(logEl, `Sending ${amount} tokens to ${dests.length} wallets...`);
+  for(const dest of dests){
+    try{
+      const destPub = new web3.PublicKey(dest);
+      const mintPub = new web3.PublicKey
