@@ -5,12 +5,11 @@
 <title>TurboTuga Mass Sender</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.4/lib/index.iife.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@solana/spl-token@0.4.6/dist/index.iife.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
 body { background: #0f172a; font-family: 'Inter', sans-serif; color: #f1f5f9; }
 .card { background: rgba(30,41,59,.85); border-radius: 1rem; padding: 1.5rem; border: 1px solid rgba(255,255,255,.1); }
-.input, select, textarea { width: 100%; padding: .5rem; border-radius: .75rem; border: 1px solid rgba(255,255,255,.2); background: #1e293b; color: #f1f5f9; }
+.input, textarea { width: 100%; padding: .5rem; border-radius: .75rem; border: 1px solid rgba(255,255,255,.2); background: #1e293b; color: #f1f5f9; }
 textarea { resize: vertical; min-height: 120px; }
 .btn { padding: .5rem 1rem; border-radius: .75rem; background: #4f46e5; color: #fff; cursor: pointer; transition: .2s; }
 .btn:hover { background: #6366f1; }
@@ -30,16 +29,8 @@ textarea { resize: vertical; min-height: 120px; }
 
   <div class="card space-y-4">
     <div>
-      <label>Paste Token Mint (optional, overrides wallet tokens)</label>
+      <label>Paste Token Mint (SPL)</label>
       <input id="mintInput" class="input" placeholder="e.g. So11111111111111111111111111111111111111112">
-    </div>
-
-    <div>
-      <label>Select SPL Token from Wallet</label>
-      <select id="tokenSelect" class="input">
-        <option value="">— connect wallet to load tokens —</option>
-      </select>
-      <div id="tokenInfo" class="text-sm text-gray-300 mt-1"></div>
     </div>
 
     <div>
@@ -77,10 +68,8 @@ textarea { resize: vertical; min-height: 120px; }
 const $=(id)=>document.getElementById(id);
 const FEE_PER_RECIPIENT_SOL=0.00005;
 let provider=null, connection=null, walletPubkey=null;
-let tokenList=[], selectedToken=null;
 
 const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn");
-const tokenSelect=$("tokenSelect"), tokenInfo=$("tokenInfo");
 const calcBtn=$("calcBtn"), sendBtn=$("sendBtn");
 const calcLog=$("calcLog"), runLog=$("runLog");
 
@@ -94,15 +83,12 @@ connectBtn.onclick=async()=>{
     connectBtn.classList.add("hidden"); 
     disconnectBtn.classList.remove("hidden");
     connection=new solanaWeb3.Connection(solanaWeb3.clusterApiUrl("mainnet-beta"),"confirmed");
-    await loadTokens();
   }catch(e){ alert("Error: "+e.message);}
 };
 
 // Disconnect wallet
 disconnectBtn.onclick=()=>{
-  provider=null; walletPubkey=null; tokenList=[]; selectedToken=null;
-  tokenSelect.innerHTML=`<option value="">— connect wallet to load tokens —</option>`;
-  tokenInfo.textContent="";
+  provider=null; walletPubkey=null;
   connectBtn.classList.remove("hidden"); 
   disconnectBtn.classList.add("hidden");
   sendBtn.disabled=true; calcLog.textContent=""; runLog.textContent="";
@@ -117,43 +103,13 @@ $("fileInput").addEventListener("change", async(e)=>{
   $("destinations").value=wallets.join("\n");
 });
 
-// Load SPL tokens
-async function loadTokens(){
-  tokenSelect.innerHTML=`<option>Loading...</option>`;
-  try{
-    const resp=await connection.getParsedTokenAccountsByOwner(walletPubkey, {programId: SPLToken.TOKEN_PROGRAM_ID});
-    tokenList=[];
-    if(!resp.value || resp.value.length===0){
-      tokenSelect.innerHTML=`<option>No tokens found</option>`; return;
-    }
-    for(const {account} of resp.value){
-      const info=account.data.parsed.info;
-      const ui=Number(info.tokenAmount.uiAmountString||0);
-      if(ui>0) tokenList.push({mint:info.mint, decimals:info.tokenAmount.decimals, amount:ui});
-    }
-    if(tokenList.length===0){
-      tokenSelect.innerHTML=`<option>No tokens with balance</option>`; tokenInfo.textContent=""; return;
-    }
-    tokenSelect.innerHTML=`<option value="">— select —</option>`+
-      tokenList.map((t,i)=>`<option value="${i}">${t.mint.slice(0,6)}…${t.mint.slice(-6)} • ${t.amount}</option>`).join("");
-    tokenSelect.onchange=()=>{
-      const idx=tokenSelect.value;
-      if(idx===""){ selectedToken=null; tokenInfo.textContent=""; sendBtn.disabled=true; return; }
-      selectedToken=tokenList[idx];
-      tokenInfo.textContent=`Mint: ${selectedToken.mint} | Balance: ${selectedToken.amount}`;
-      sendBtn.disabled=false;
-    };
-  }catch(e){ tokenSelect.innerHTML=`<option>Error loading tokens</option>`; tokenInfo.textContent=e.message; }
-}
-
 // Validate Solana address
 function isValidSolAddress(addr){ try{new solanaWeb3.PublicKey(addr); return true}catch{return false;} }
 
 // Calculate fee
 calcBtn.onclick=async()=>{
   calcLog.textContent="";
-  const mintInput=$("mintInput").value.trim();
-  if(mintInput==="" && !selectedToken){ calcLog.textContent="Select a token or paste a mint."; return; }
+  if(!walletPubkey){ calcLog.textContent="Connect wallet first."; return; }
   const dests=$("destinations").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const invalid=dests.filter(d=>!isValidSolAddress(d));
   if(invalid.length>0){ calcLog.textContent=`Invalid addresses:\n${invalid.join("\n")}`; sendBtn.disabled=true; return; }
@@ -168,29 +124,22 @@ sendBtn.onclick=async()=>{
   runLog.textContent="Sending…\n";
   const dests=$("destinations").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const amt=Number($("amountEach").value);
-  let mintStr=$("mintInput").value.trim();
-  let decimals=0;
-  let mint;
-  if(mintStr!==""){
-    mint=new solanaWeb3.PublicKey(mintStr);
-    decimals=9;
-  } else if(selectedToken){
-    mint=new solanaWeb3.PublicKey(selectedToken.mint);
-    decimals=selectedToken.decimals;
-  } else { runLog.textContent="No token selected"; return; }
+  const mintStr=$("mintInput").value.trim();
+  if(!mintStr){ runLog.textContent="Paste the token mint first."; return; }
+  const mint=new solanaWeb3.PublicKey(mintStr);
 
   let sentCount=0;
   for(const dest of dests){
     try{
       const destPk=new solanaWeb3.PublicKey(dest);
-      const ataFrom=await SPLToken.getAssociatedTokenAddress(mint,walletPubkey);
-      const ataTo=await SPLToken.getAssociatedTokenAddress(mint,destPk);
-      const instrs=[];
-      if(!await connection.getAccountInfo(ataTo)) instrs.push(SPLToken.createAssociatedTokenAccountInstruction(walletPubkey,destPk,mint,walletPubkey, SPLToken.ASSOCIATED_TOKEN_PROGRAM_ID, SPLToken.TOKEN_PROGRAM_ID));
-      instrs.push(SPLToken.createTransferInstruction(ataFrom,ataTo,walletPubkey,amt*Math.pow(10,decimals),[],SPLToken.TOKEN_PROGRAM_ID));
-      const tx=new solanaWeb3.Transaction().add(...instrs);
-      const sig=await provider.signAndSendTransaction(tx);
-      runLog.textContent+=`✅ ${dest} sent: ${sig}\n`; sentCount++;
+      const ix = solanaWeb3.SystemProgram.transfer({
+        fromPubkey: walletPubkey,
+        toPubkey: destPk,
+        lamports: Math.floor(amt * solanaWeb3.LAMPORTS_PER_SOL) // sending SOL equivalent
+      });
+      const tx=new solanaWeb3.Transaction().add(ix);
+      const {signature} = await provider.signAndSendTransaction(tx);
+      runLog.textContent+=`✅ ${dest} sent: ${signature}\n`; sentCount++;
     }catch(e){ runLog.textContent+=`❌ ${dest} failed: ${e.message}\n`; }
   }
   runLog.textContent+=`\nCompleted: ${sentCount}/${dests.length}`;
