@@ -49,7 +49,7 @@ textarea { resize: vertical; min-height: 120px; }
 
     <div>
       <label>Fee per wallet</label>
-      <input type="text" class="input" value="0.00005 SOL per wallet" readonly>
+      <input type="text" id="feeInfo" class="input" value="0.00005 SOL per wallet" readonly>
     </div>
 
     <div class="flex space-x-2">
@@ -72,6 +72,7 @@ let provider=null, connection=null, walletPubkey=null;
 const connectBtn=$("connectBtn"), disconnectBtn=$("disconnectBtn");
 const calcBtn=$("calcBtn"), sendBtn=$("sendBtn");
 const calcLog=$("calcLog"), runLog=$("runLog");
+const feeInfo=$("feeInfo");
 
 // Connect wallet
 connectBtn.onclick=async()=>{
@@ -83,6 +84,7 @@ connectBtn.onclick=async()=>{
     connectBtn.classList.add("hidden"); 
     disconnectBtn.classList.remove("hidden");
     connection=new solanaWeb3.Connection(solanaWeb3.clusterApiUrl("mainnet-beta"),"confirmed");
+    runLog.textContent="Wallet connected: "+walletPubkey.toString();
   }catch(e){ alert("Error: "+e.message);}
 };
 
@@ -115,18 +117,22 @@ calcBtn.onclick=async()=>{
   if(invalid.length>0){ calcLog.textContent=`Invalid addresses:\n${invalid.join("\n")}`; sendBtn.disabled=true; return; }
   const fee=FEE_PER_RECIPIENT_SOL*dests.length;
   const balance=await connection.getBalance(walletPubkey)/solanaWeb3.LAMPORTS_PER_SOL;
-  calcLog.textContent=`Recipients: ${dests.length}\nNetwork fee: ${fee.toFixed(6)} SOL\nWallet balance: ${balance.toFixed(6)} SOL`;
+  calcLog.textContent=`Recipients: ${dests.length}\nTotal network fee: ${fee.toFixed(6)} SOL\nWallet balance: ${balance.toFixed(6)} SOL`;
+  feeInfo.value=`${fee.toFixed(6)} SOL total`;
   sendBtn.disabled=(balance<fee);
 };
 
-// Send tokens
+// Send tokens (SOL example)
 sendBtn.onclick=async()=>{
   runLog.textContent="Sending…\n";
   const dests=$("destinations").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const amt=Number($("amountEach").value);
   const mintStr=$("mintInput").value.trim();
   if(!mintStr){ runLog.textContent="Paste the token mint first."; return; }
-  const mint=new solanaWeb3.PublicKey(mintStr);
+
+  const feeTotal=FEE_PER_RECIPIENT_SOL*dests.length;
+  const balance=await connection.getBalance(walletPubkey)/solanaWeb3.LAMPORTS_PER_SOL;
+  if(balance<feeTotal){ runLog.textContent="Not enough SOL for fees!"; return; }
 
   let sentCount=0;
   for(const dest of dests){
@@ -135,7 +141,7 @@ sendBtn.onclick=async()=>{
       const ix = solanaWeb3.SystemProgram.transfer({
         fromPubkey: walletPubkey,
         toPubkey: destPk,
-        lamports: Math.floor(amt * solanaWeb3.LAMPORTS_PER_SOL) // sending SOL equivalent
+        lamports: Math.floor(amt * solanaWeb3.LAMPORTS_PER_SOL)
       });
       const tx=new solanaWeb3.Transaction().add(ix);
       const {signature} = await provider.signAndSendTransaction(tx);
